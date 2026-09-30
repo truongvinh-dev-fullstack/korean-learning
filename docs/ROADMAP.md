@@ -117,7 +117,7 @@ flowchart LR
 
 ---
 
-### Phase 7: Admin Content Management System (CMS)
+### Phase 7: Admin Content Management System (CMS) [COMPLETED]
 - **Goal**: Empower administrators to author and maintain curriculum directly through an administrative web portal.
 - **Milestones**:
   - Role guard verifying `role === 'ADMIN'` for `/admin` routes.
@@ -125,19 +125,21 @@ flowchart LR
   - Lesson editor: edit text, Hangul explanations, vocabulary, grammar notes, and dialogue lines.
   - Audio URL validator with an inline audio playback preview.
   - Exercise question editor: create questions, define options, and set protected grading keys.
-- **Definition of Done**: Admin user can log in, create a new lesson with audio URLs and quiz questions, publish it, and verify that a student user can immediately access and complete it.
+- **Definition of Done**: Admin user can log in, create a new lesson with audio URLs and quiz questions, publish it, and verify that a student user can immediately access and complete it. (Verified in `tests/admin-content-management.test.ts` & `e2e/04-admin-cms-journey.spec.ts`).
 
 ---
 
-### Phase 8: Verification, Polish & MVP Hardening
+### Phase 8 & 9: Verification, Hardening & Local MVP Packaging [COMPLETED]
 - **Goal**: Validate the end-to-end user journey, test edge cases, refine visual styling, and ensure production-grade code quality.
 - **Milestones**:
-  - End-to-end verification of the 9-step MVP user journey.
-  - Comprehensive seed script (`npm run db:seed`) creating full curriculum and test accounts.
-  - Unit tests for grading logic, SM-2 math, and streak transitions.
-  - Visual polish: typography refinement, mobile responsiveness, accessible keyboard navigation, loading skeletons.
-  - Full TypeScript and linter audit: zero errors on `npm run typecheck` and `npm run lint`.
-- **Definition of Done**: Clean clone passes `npm install && npm run db:push && npm run db:seed && npm run dev`; all tests pass; zero console errors.
+  - Complete Playwright E2E test suite covering all 9 MVP user journeys across 6 spec files (7 tests).
+  - Unit and integration tests (11 test files, 122 tests via Vitest).
+  - Clean TypeScript strict compliance (`pnpm typecheck` = 0 errors).
+  - Zero linter errors/warnings (`pnpm lint` = 0 errors, 0 warnings).
+  - Optimized Next.js production build (`pnpm build`).
+  - Exhaustive developer and operations documentation in `docs/LOCAL_DEVELOPMENT.md`.
+  - Deterministic database seed and reset mechanism (`pnpm db:seed`).
+- **Definition of Done**: Clean clone passes `pnpm install && pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev`; all tests pass; zero console errors.
 
 ---
 

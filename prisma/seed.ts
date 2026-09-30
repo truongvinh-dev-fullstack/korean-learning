@@ -203,6 +203,14 @@ async function main() {
   await prisma.question.deleteMany();
   await prisma.exercise.deleteMany();
 
+  // Clean non-baseline lessons and progress created during tests/admin CMS runs
+  await prisma.lessonProgress.deleteMany({
+    where: { lessonId: { notIn: lessonsData.map((l) => l.id) } },
+  });
+  await prisma.lesson.deleteMany({
+    where: { id: { notIn: lessonsData.map((l) => l.id) } },
+  });
+
   // 4. Complete Content for Lesson 1 (10 Nguyên âm cơ bản)
   const lesson1Id = lessonsData[0].id;
   await prisma.lessonBlock.createMany({

@@ -72,6 +72,30 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Quick Action Navigation */}
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-white">Quản lý Khóa học & Nội dung giảng dạy</h2>
+          <p className="text-xs text-slate-300">
+            Xem danh mục giáo trình, sắp xếp chương học, biên tập bài giảng, từ vựng và câu hỏi bài tập.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href="/admin/courses/new"
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+          >
+            + Khóa học mới
+          </Link>
+          <Link
+            href="/admin/courses"
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all"
+          >
+            Vào CMS Khóa học →
+          </Link>
+        </div>
+      </div>
+
       {/* CLI Instruction Box */}
       <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-white">

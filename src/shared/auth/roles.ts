@@ -1,22 +1,11 @@
 export type UserRole = "STUDENT" | "ADMIN";
 
-export class UnauthorizedError extends Error {
-  statusCode = 401;
-  constructor(message: string = "Bạn cần đăng nhập để truy cập tài nguyên này.") {
-    super(message);
-    this.name = "UnauthorizedError";
-  }
-}
+import {
+  UnauthorizedError,
+  ForbiddenError,
+} from "@/shared/errors/domain-errors";
 
-export class ForbiddenError extends Error {
-  statusCode = 403;
-  constructor(
-    message: string = "Bạn không có quyền hạn Quản trị viên (ADMIN) để thực hiện thao tác này."
-  ) {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
+export { UnauthorizedError, ForbiddenError };
 
 /**
  * Asserts that a session exists and has an authenticated user.

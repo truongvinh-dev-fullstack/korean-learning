@@ -26,17 +26,27 @@ export class DashboardService {
    * Calculates actual streak, course progress percentages, and continue-learning card.
    */
   async getStudentDashboardData(user: StudentDashboardUser): Promise<StudentDashboardData> {
-    const publishedCourses = await this.courses.getPublishedCatalog();
-    const streakData = await this.progress.getUserStreak(user.id);
+    const [publishedCourses, streakData, srsSummary] = await Promise.all([
+      this.courses.getPublishedCatalog(),
+      this.progress.getUserStreak(user.id),
+      this.srs.getReviewSummaryForStudent(user.id),
+    ]);
 
     let totalCompletedLessons = 0;
     const courseItems: DashboardCourseItem[] = [];
     let continueLearning: ContinueLearningCardData | null = null;
 
-    for (const course of publishedCourses) {
-      const isEnrolled = await this.courses.isStudentEnrolled(user.id, course.id);
-      const progressData = await this.progress.getCourseProgress(user.id, course.id);
+    const courseProgressResults = await Promise.all(
+      publishedCourses.map(async (course) => {
+        const [isEnrolled, progressData] = await Promise.all([
+          this.courses.isStudentEnrolled(user.id, course.id),
+          this.progress.getCourseProgress(user.id, course.id),
+        ]);
+        return { course, isEnrolled, progressData };
+      })
+    );
 
+    for (const { course, isEnrolled, progressData } of courseProgressResults) {
       totalCompletedLessons += progressData.completedLessons;
 
       courseItems.push({
@@ -65,8 +75,6 @@ export class DashboardService {
         };
       }
     }
-
-    const srsSummary = await this.srs.getReviewSummaryForStudent(user.id);
 
     const metrics = {
       currentStreakDays: streakData.currentStreak,
