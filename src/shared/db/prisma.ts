@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { attachDatabasePool } from "@vercel/functions";
 import { validateServerEnv } from "@/shared/config/env";
+import { databaseConnectionOptions } from "./connection-options";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -15,7 +16,7 @@ const connectionString = validateServerEnv(process.env).databaseUrl;
 const pool =
   globalForPrisma.pgPool ??
   new Pool({
-    connectionString,
+    ...databaseConnectionOptions(connectionString, process.env.SUPABASE_CA_CERT),
     max: 5,
     idleTimeoutMillis: 5_000,
     connectionTimeoutMillis: 10_000,

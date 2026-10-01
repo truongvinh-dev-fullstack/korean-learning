@@ -1,5 +1,7 @@
 # Triển khai HTTPS với Vercel + Supabase
 
+Nếu dự án đã deploy và bạn cần chỉnh sửa/cập nhật về sau, xem [hướng dẫn bảo trì và deploy lại](MAINTENANCE_AND_DEPLOY.md).
+
 Vercel chạy Next.js và cấp địa chỉ `https://<project>.vercel.app`. Supabase cung cấp PostgreSQL; ứng dụng tiếp tục dùng Better Auth và Prisma. Không cần Supabase Auth, anon key hoặc service-role key. Audio trong `public/audio` được deploy cùng ứng dụng.
 
 Production hiện tại: https://korean-zero.vercel.app. Vercel project: https://vercel.com/tri-nghia/korean-zero. Đã áp dụng 6 migrations, nạp nội dung mẫu và kiểm tra health, audio, đăng ký, đăng nhập, đăng xuất và dashboard trên production. Deployment đầu tiên được thực hiện từ workspace qua CLI; commit/push các thay đổi setup để các lần deploy tự động từ GitHub có cùng cấu hình.

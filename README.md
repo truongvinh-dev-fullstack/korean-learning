@@ -4,6 +4,8 @@ Korean learning MVP built with Next.js, Better Auth, Prisma, and PostgreSQL. Dep
 
 Live site: [korean-zero.vercel.app](https://korean-zero.vercel.app).
 
+Hướng dẫn bằng tiếng Việt cho các lần chỉnh sửa và deploy tiếp theo: [các lệnh phát triển, cập nhật Supabase và deploy lại Vercel](docs/MAINTENANCE_AND_DEPLOY.md).
+
 ## Requirements
 
 - Node.js 22 LTS and pnpm (the version in `package.json` is recommended).
