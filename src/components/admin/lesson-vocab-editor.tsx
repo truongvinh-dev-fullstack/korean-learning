@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { VocabularyFormSchema } from "@/modules/admin/admin.schema";
 import { VocabularyAudioButton } from "@/components/lessons/vocabulary-audio-button";
+import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
 
 export interface VocabularyItem {
   id: string;
@@ -255,14 +256,11 @@ export function LessonVocabEditor({
                   {v.vietnameseMeaning}
                 </td>
                 <td className="px-3 py-2.5 text-slate-400 text-xs">{v.partOfSpeech || "—"}</td>
-                <td className="px-3 py-2.5 text-xs">
-                  {v.audioUrl ? (
-                    <span className="text-emerald-400 font-mono text-[11px]" title={v.audioUrl}>
-                      🔊 Có audio
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">—</span>
-                  )}
+                <td className="px-3 py-2.5">
+                  <VocabularyAudioButton
+                    hangul={v.hangul}
+                    audioUrl={getVocabularyAudioUrl(v.hangul, v.audioUrl, vocabs)}
+                  />
                 </td>
                 <td className="px-3 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">

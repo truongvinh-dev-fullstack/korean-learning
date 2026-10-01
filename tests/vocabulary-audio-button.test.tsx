@@ -15,6 +15,23 @@ class FakeAudio extends EventTarget {
   removeAttribute = vi.fn();
   constructor() { super(); FakeAudio.instances.push(this); }
 }
+
+class FakeUtterance {
+  lang = "";
+  onstart: ((event: Event) => void) | null = null;
+  onend: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  constructor(public text: string) {}
+}
+
+class FakeSpeechSynthesis {
+  utterances: FakeUtterance[] = [];
+  speak = vi.fn((utterance: FakeUtterance) => {
+    this.utterances.push(utterance);
+    utterance.onstart?.(new Event("start"));
+  });
+  cancel = vi.fn();
+}
 const flushPlayback = () => act(async () => { await Promise.resolve(); });
 
 beforeEach(() => {
@@ -41,6 +58,21 @@ describe("Vocabulary pronunciation button", () => {
     expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("status").textContent).toBe("Chưa có âm thanh");
     expect(FakeAudio.instances).toHaveLength(0);
+  });
+
+  it("uses the device Korean text-to-speech when no recording is available", () => {
+    const speech = new FakeSpeechSynthesis();
+    vi.stubGlobal("speechSynthesis", speech);
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    render(<VocabularyAudioButton hangul="오이" audioUrl={null} />);
+
+    expect((screen.getByRole("button", { name: "Đọc từ tiếng Hàn 오이" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("status").textContent).toBe("Giọng đọc tự động");
+    fireEvent.click(screen.getByRole("button", { name: "Đọc từ tiếng Hàn 오이" }));
+    expect(speech.speak).toHaveBeenCalledOnce();
+    expect(speech.utterances[0]).toMatchObject({ text: "오이", lang: "ko-KR" });
+    fireEvent.click(screen.getByRole("button", { name: "Dừng phát âm 오이" }));
+    expect(speech.cancel).toHaveBeenCalledOnce();
   });
 
   it("stops the current word when another button is clicked", async () => {

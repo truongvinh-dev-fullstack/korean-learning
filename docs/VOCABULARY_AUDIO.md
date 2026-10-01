@@ -2,6 +2,8 @@
 
 Trong bài học, nút loa nằm cạnh từ tiếng Hàn ở khối VOCABULARY và bảng tổng hợp từ vựng. Bấm để nghe, bấm lại để dừng. Khi nghe từ khác hoặc chuyển trang, âm thanh trước đó dừng. Audio chỉ tải khi bấm nút. File lỗi hoặc tải quá 15 giây sẽ có thông báo và cho phép thử lại.
 
+Khi một từ chưa có file ghi âm, nút loa sẽ dùng giọng đọc tiếng Hàn có sẵn trên thiết bị qua Web Speech API. Trạng thái hiển thị **Giọng đọc tự động**. Chất lượng và tính khả dụng của giọng này phụ thuộc vào trình duyệt/hệ điều hành; file ghi âm được kiểm chứng vẫn luôn được ưu tiên. Nếu thiết bị không hỗ trợ giọng đọc, nút sẽ báo **Chưa có âm thanh**.
+
 ## Bổ sung âm thanh trong admin
 
 1. Mở bài học trong `/admin`, chọn thêm hoặc sửa từ vựng.
@@ -16,7 +18,7 @@ File nội bộ phải nằm trong `public/audio/vocab/` và được deploy cù
 - URL riêng của từ luôn được ưu tiên.
 - Nếu một mục trong khối VOCABULARY chưa có URL, nó dùng URL của từ trùng chính xác trong danh sách từ vựng của bài. Nếu các mục trùng từ có URL khác nhau, hệ thống không tự chọn.
 - Nếu chưa có URL riêng, bản ghi có sẵn trong `src/shared/audio/vocabulary-recordings.json` được chọn theo toàn bộ từ Hangul, sau khi chuẩn hóa Unicode.
-- Từ chưa có bản ghi hiển thị nút bị vô hiệu hóa và “Chưa có âm thanh”. Không thay thế bằng bản ghi của từ gần giống.
+- Từ chưa có bản ghi dùng giọng đọc tự động trên thiết bị khi trình duyệt hỗ trợ. Nếu không hỗ trợ, nút bị vô hiệu hóa và hiển thị “Chưa có âm thanh”. Không thay thế bằng bản ghi của từ gần giống.
 
 Các bản ghi có sẵn dùng được ngay với dữ liệu production hiện tại sau khi deploy, không cần migration hoặc chạy lại seed. Seed mới cũng dùng các bản ghi này và giữ nguyên URL do admin cung cấp trong dữ liệu đã tồn tại.
 
