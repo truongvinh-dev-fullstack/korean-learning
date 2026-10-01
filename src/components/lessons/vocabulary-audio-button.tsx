@@ -38,10 +38,11 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
     activePlayback?.stop();
     document.querySelectorAll("audio").forEach((audio) => audio.pause());
 
-    if (!source) {
+    if (speechSupported) {
       startSpeech();
       return;
     }
+    if (!source) return;
     setState("loading");
 
     try {
@@ -145,8 +146,8 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
 
   const busy = state === "loading" || state === "playing";
   const available = Boolean(source) || speechSupported;
-  const description = !available ? "Chưa có âm thanh" : !source ? "Giọng đọc tự động" : state === "loading" ? "Đang tải âm thanh…" : state === "error" ? "Không phát được âm thanh, thử lại." : "";
-  const label = busy ? `Dừng phát âm ${hangul}` : !source ? `Đọc từ tiếng Hàn ${hangul}` : `Nghe phát âm ${hangul}`;
+  const description = !available ? "Chưa có âm thanh" : !speechSupported && state === "loading" ? "Đang tải âm thanh…" : state === "error" ? "Không phát được âm thanh, thử lại." : "";
+  const label = busy ? `Dừng phát âm ${hangul}` : `Nghe phát âm ${hangul}`;
 
   return (
     <span className="inline-flex shrink-0 flex-col items-start gap-1 align-middle">
@@ -166,7 +167,7 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
         ) : (
           <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m11 4-6 5H2v6h3l6 5V4Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></svg>
         )}
-        {showLabel && <span className="text-xs font-semibold">{busy ? "Dừng" : !source ? "Đọc tự động" : "Nghe thử"}</span>}
+        {showLabel && <span className="text-xs font-semibold">{busy ? "Dừng" : "Nghe thử"}</span>}
       </button>
       <span role="status" className={`max-w-48 text-[11px] font-normal ${state === "error" ? "text-rose-300" : "text-slate-400"}`}>{description}</span>
     </span>

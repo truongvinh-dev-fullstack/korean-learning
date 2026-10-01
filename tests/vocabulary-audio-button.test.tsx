@@ -60,17 +60,18 @@ describe("Vocabulary pronunciation button", () => {
     expect(FakeAudio.instances).toHaveLength(0);
   });
 
-  it("uses the device Korean text-to-speech when no recording is available", () => {
+  it("prefers device Korean text-to-speech over a recording", () => {
     const speech = new FakeSpeechSynthesis();
     vi.stubGlobal("speechSynthesis", speech);
     vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
-    render(<VocabularyAudioButton hangul="오이" audioUrl={null} />);
+    render(<VocabularyAudioButton hangul="오이" audioUrl="/audio/vocab/oi.ogg" />);
 
-    expect((screen.getByRole("button", { name: "Đọc từ tiếng Hàn 오이" }) as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByRole("status").textContent).toBe("Giọng đọc tự động");
-    fireEvent.click(screen.getByRole("button", { name: "Đọc từ tiếng Hàn 오이" }));
+    expect((screen.getByRole("button", { name: "Nghe phát âm 오이" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("status").textContent).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Nghe phát âm 오이" }));
     expect(speech.speak).toHaveBeenCalledOnce();
     expect(speech.utterances[0]).toMatchObject({ text: "오이", lang: "ko-KR" });
+    expect(FakeAudio.instances).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Dừng phát âm 오이" }));
     expect(speech.cancel).toHaveBeenCalledOnce();
   });
