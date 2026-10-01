@@ -80,8 +80,9 @@ export class DashboardService {
       currentStreakDays: streakData.currentStreak,
       longestStreakDays: streakData.longestStreak,
       completedLessonsCount: totalCompletedLessons,
-      totalWordsLearned:
-        srsSummary.totalCards > 0 ? srsSummary.totalCards : totalCompletedLessons * 5,
+      // Words learned = distinct vocabulary cards actually created for this student.
+      // ReviewCard's (userId, vocabularyId) unique constraint prevents double counting.
+      totalWordsLearned: srsSummary.totalCards,
       srsDueCount: srsSummary.dueTodayCount,
       studiedToday: streakData.studiedToday,
     };

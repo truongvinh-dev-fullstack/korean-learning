@@ -13,6 +13,7 @@ import {
 } from "@/shared/errors/domain-errors";
 import { progressService, ProgressService } from "@/modules/progress/progress.service";
 import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
+import { serializeExerciseResult, type ExerciseResultDto } from "./result";
 
 export interface SanitizedQuestionOption {
   id: string;
@@ -161,7 +162,7 @@ export class ExerciseService {
     answers: StudentQuestionAnswerInput[];
     startedAt?: Date;
     idempotencyKey?: string;
-  }) {
+  }): Promise<ExerciseResultDto> {
     if (!userId) {
       throw new UnauthorizedError("Yêu cầu đăng nhập để nộp bài tập.");
     }
@@ -222,23 +223,14 @@ export class ExerciseService {
       });
     }
 
-    return {
-      attemptId: attempt.id,
-      exerciseId,
-      totalScore: gradingResult.totalScore,
-      maxScore: gradingResult.maxScore,
-      percentage: gradingResult.percentage,
-      isPassing: gradingResult.isPassing,
-      gradedQuestions: gradingResult.gradedQuestions,
-      submittedAt: now,
-    };
+    return this.getAttemptResultForStudent(attempt.id, userId);
   }
 
   /**
    * Retrieves attempt results for a student.
    * Users may read only their own attempts.
    */
-  async getAttemptResultForStudent(attemptId: string, requestingUserId: string) {
+  async getAttemptResultForStudent(attemptId: string, requestingUserId: string): Promise<ExerciseResultDto> {
     if (!requestingUserId) {
       throw new UnauthorizedError("Yêu cầu đăng nhập để xem kết quả bài tập.");
     }
@@ -254,30 +246,7 @@ export class ExerciseService {
       );
     }
 
-    return {
-      attemptId: attempt.id,
-      exerciseId: attempt.exerciseId,
-      totalScore: attempt.score,
-      maxScore: attempt.maxScore,
-      percentage: attempt.percentage,
-      isPassing: attempt.isPassing,
-      submittedAt: attempt.submittedAt,
-      answers: attempt.answers.map((ans) => ({
-        questionId: ans.questionId,
-        isCorrect: ans.isCorrect,
-        score: ans.score,
-        prompt: ans.question.prompt,
-        type: ans.question.type,
-        correctAnswer:
-          ans.question.correctAnswer ||
-          ans.question.options.find((o) => o.isCorrect)?.text ||
-          "",
-        explanation:
-          ans.question.explanation ||
-          ans.question.options.find((o) => o.isCorrect)?.explanation ||
-          null,
-      })),
-    };
+    return serializeExerciseResult(attempt);
   }
 }
 

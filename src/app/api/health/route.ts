@@ -27,15 +27,14 @@ export async function GET() {
       { status: isDatabaseConnected ? 200 : 503 }
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown database error";
+    console.error("Health database check failed", error);
 
     return NextResponse.json(
       {
         status: "error",
         app: "healthy",
         database: "disconnected",
-        error: errorMessage,
+        error: "Database health check unavailable.",
         timestamp,
       },
       { status: 503 }

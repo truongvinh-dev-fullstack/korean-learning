@@ -14,7 +14,7 @@ The platform is engineered as a clean, highly cohesive **modular monolith** opti
 | :--- | :--- | :--- |
 | **VISITOR** | Unauthenticated curious learner | Browse the course catalog, inspect course curriculum previews, understand platform features, and create an account. |
 | **STUDENT** | "Alex" — Beginner Korean learner | Enroll in the beginner course, study ordered lessons containing Hangul breakdowns, vocabulary, grammar rules, dialogues with audio, practice exercises with immediate feedback, maintain a daily streak, and review due vocabulary flashcards. |
-| **ADMIN** | "Master Instructor / Admin" | Maintain curriculum integrity: create and publish courses, organize modules and lessons, configure exercise question banks and answer keys, and manage vocabulary items with audio links. |
+| **ADMIN** | "Master Instructor / Admin" | Maintain curriculum integrity: create and publish courses, organize chapters and lessons, configure exercise question banks and answer keys, and manage vocabulary items with audio links. |
 
 ---
 
@@ -41,7 +41,7 @@ flowchart TD
 1. **Catalog & Landing Discovery**: The visitor lands on a polished marketing homepage highlighting features (Hangul foundation, interactive exercises, SRS) and views the course catalog containing the flagship *"Beginner Korean 1 (Hangul & Essentials)"* course.
 2. **Account Creation & Authentication**: The visitor registers with an email, display name, and password. No email verification link is required for the MVP; registration automatically logs the user in. Existing users sign in via credentials.
 3. **Course Enrollment**: From the catalog or course detail page, the student clicks "Enroll Now". The system creates an active enrollment record and redirects the student to the course learning dashboard.
-4. **Ordered Lesson Progression**: The course is split into structured modules containing sequential lessons. Lessons follow an ordered path (Lesson 1 unlocks Lesson 2 upon completion).
+4. **Ordered Lesson Progression**: The course is split into structured chapters containing sequential lessons. Lessons follow an ordered path (Lesson 1 unlocks Lesson 2 upon completion).
 5. **Rich Lesson Content Delivery**: A lesson presents multi-faceted content components:
    - **Text & Hangul Breakdown**: Visual stroke guides, syllable block breakdowns (Initial consonant + Vowel + Batchim), Romanization, and pronunciation tips.
    - **Vocabulary Bank**: Key terms with Korean Hangul, English definition, part of speech, and example sentences.
@@ -52,11 +52,11 @@ flowchart TD
    - Multiple Choice Questions (Hangul to English, English to Hangul, audio prompt identification).
    - Fill-in-the-blank (typing Hangul or selecting particle).
    - Sentence Reordering (assembling word blocks into grammatical Korean sentences).
-   - Word Matching (pairing Hangul terms with English definitions).
+   - Listening Choice (playing an audio prompt before selecting a choice). Word matching remains post-MVP.
    - **Server-Side Grading**: Client sends answers to the server. The server calculates results against protected answer keys, returns score percentage, correct/incorrect statuses, and explanations. Answer keys are never exposed in advance to the client.
 7. **Progress & Daily Study Streak**: Upon achieving a passing threshold (e.g., 80% or completing all required questions), the lesson is marked completed. The progress engine logs daily activity and increments the student's daily study streak (calculating active day boundaries).
-8. **Spaced Repetition System (SRS) Review Queue**: All vocabulary items tied to completed lessons are automatically seeded into the student's personal SRS deck using an SM-2 algorithmic model. When reviews become due (based on calculated intervals: 1 day, 3 days, 7 days, etc.), the student reviews flashcards via the `/reviews` view, grading their recall quality.
-9. **Admin Content Management**: An administrator accessing `/admin` can manage courses, modules, lessons, content sections, vocabulary items, audio URLs, and exercise question banks with immediate persistence.
+8. **Spaced Repetition System (SRS) Review Queue**: All vocabulary items tied to completed lessons are automatically seeded into the student's personal SRS deck using an SM-2 algorithmic model. When reviews become due (based on calculated intervals: 1 day, 3 days, 7 days, etc.), the student reviews flashcards via the `/on-tap` view, grading their recall quality.
+9. **Admin Content Management**: An administrator accessing `/admin` can manage courses, chapters, lessons, content sections, vocabulary items, audio URLs, and exercise question banks with immediate persistence.
 
 ---
 
@@ -96,8 +96,8 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 
 ### FR-1: Course Catalog & Discovery
 - **FR-1.1**: The system shall display published courses on the landing page and catalog route.
-- **FR-1.2**: Each course card shall show title, summary, difficulty level (`BEGINNER`), total modules/lessons count, and estimated completion time.
-- **FR-1.3**: Visitors can inspect the course syllabus (module and lesson titles) without enrolling.
+- **FR-1.2**: Each course card shall show title, summary, difficulty level (`BEGINNER`), total chapters/lessons count, and estimated completion time.
+- **FR-1.3**: Visitors can inspect the course syllabus (chapter and lesson titles) without enrolling.
 
 ### FR-2: Authentication & User Accounts
 - **FR-2.1**: Visitors can register an account by providing email, password (min 8 characters), and full name.
@@ -108,7 +108,7 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 ### FR-3: Enrollment & Course Navigation
 - **FR-3.1**: Authenticated students can enroll in any published course with a single action.
 - **FR-3.2**: A student cannot enroll in the same course more than once.
-- **FR-3.3**: The course dashboard shall display the student's enrollment status, progress percentage, next up lesson, and full module syllabus.
+- **FR-3.3**: The course dashboard shall display the student's enrollment status, progress percentage, next up lesson, and full chapter syllabus.
 - **FR-3.4**: Lessons must be accessed in sequential order. A lesson is unlocked if it is the first lesson of the course or if the preceding lesson is completed.
 
 ### FR-4: Lesson Presentation & Audio Playback
@@ -152,7 +152,7 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 
 ### FR-8: Admin Content Management System (CMS)
 - **FR-8.1**: The `/admin` portal is restricted to users with the `ADMIN` role. Unauthorized requests must return HTTP 403 Forbidden.
-- **FR-8.2**: Admins can create, view, update, and toggle publishing of Courses and Modules.
+- **FR-8.2**: Admins can create, view, update, and toggle publishing of Courses and Chapters.
 - **FR-8.3**: Admins can create and edit Lessons, including reordering, editing content sections, managing associated vocabulary, and authoring exercise questions.
 - **FR-8.4**: Admins can validate audio URLs directly within the editor with an inline audio test preview.
 

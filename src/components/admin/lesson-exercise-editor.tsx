@@ -230,8 +230,9 @@ export function LessonExerciseEditor({
       explanation: questionFormData.explanation.trim() || null,
       options:
         questionFormData.type === QuestionType.MULTIPLE_CHOICE ||
-        questionFormData.type === QuestionType.LISTENING_CHOICE
-          ? questionFormData.options.filter((o) => o.text.trim().length > 0)
+        questionFormData.type === QuestionType.LISTENING_CHOICE ||
+        questionFormData.type === QuestionType.ARRANGE_SENTENCE
+          ? questionFormData.options.filter((o) => o.text.trim().length > 0).map((o, index) => ({ ...o, displayOrder: index }))
           : [],
     };
 
@@ -602,6 +603,7 @@ export function LessonExerciseEditor({
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold text-slate-300">Loại câu hỏi</label>
                   <select
+                    aria-label="Loại câu hỏi"
                     value={questionFormData.type}
                     onChange={(e) =>
                       setQuestionFormData({
@@ -691,6 +693,35 @@ export function LessonExerciseEditor({
               )}
 
               {/* Correct Answer input for FILL_BLANK & ARRANGE_SENTENCE */}
+              {questionFormData.type === QuestionType.ARRANGE_SENTENCE && (
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <p className="text-xs text-slate-300">Các thẻ từ (mỗi lần lặp lại cần một thẻ riêng):</p>
+                  {questionFormData.options.map((tile, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-2" data-testid="arrangement-tile">
+                      <input
+                        aria-label={`Thẻ từ ${idx + 1}`}
+                        value={tile.text}
+                        onChange={(e) => setQuestionFormData({ ...questionFormData, options: questionFormData.options.map((o, i) => i === idx ? { ...o, text: e.target.value } : o) })}
+                        className="min-w-0 flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white"
+                      />
+                      {([-1, 1] as const).map((direction) => (
+                        <button key={direction} type="button" disabled={idx + direction < 0 || idx + direction >= questionFormData.options.length}
+                          aria-label={`${direction < 0 ? "Đưa lên" : "Đưa xuống"} thẻ ${idx + 1}`}
+                          onClick={() => {
+                            const options = [...questionFormData.options];
+                            [options[idx], options[idx + direction]] = [options[idx + direction], options[idx]];
+                            setQuestionFormData({ ...questionFormData, options });
+                          }}
+                          className="px-2 py-1 text-slate-300 disabled:opacity-30">{direction < 0 ? "↑" : "↓"}</button>
+                      ))}
+                      <button type="button" aria-label={`Xóa thẻ ${idx + 1}`} onClick={() => setQuestionFormData({ ...questionFormData, options: questionFormData.options.filter((_, i) => i !== idx) })}
+                        className="px-2 py-1 text-rose-300">Xóa</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setQuestionFormData({ ...questionFormData, options: [...questionFormData.options, { text: "", isCorrect: false, displayOrder: questionFormData.options.length }] })}
+                    className="px-3 py-2 rounded-lg border border-indigo-700 text-xs text-indigo-300">Thêm thẻ từ</button>
+                </div>
+              )}
               {(questionFormData.type === QuestionType.FILL_BLANK ||
                 questionFormData.type === QuestionType.ARRANGE_SENTENCE) && (
                 <div className="space-y-1 pt-2 border-t border-slate-800">
@@ -698,6 +729,7 @@ export function LessonExerciseEditor({
                     Đáp án chuẩn máy chủ chấm <span className="text-rose-400">*</span>
                   </label>
                   <input
+                    aria-label="Đáp án chuẩn"
                     type="text"
                     value={questionFormData.correctAnswer}
                     onChange={(e) =>

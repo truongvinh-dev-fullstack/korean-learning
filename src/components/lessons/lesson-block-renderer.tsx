@@ -154,7 +154,7 @@ export function LessonBlockRenderer({ block }: { block: ValidatedLessonBlock }) 
           <div className="flex items-center justify-between flex-wrap gap-3">
             {title && <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>}
             {audioUrl && (
-              <audio controls className="h-8 max-w-xs" src={audioUrl}>
+              <audio controls preload="none" aria-label={`Âm thanh hội thoại: ${title || "Toàn đoạn"}`} className="h-8 w-full max-w-xs" src={audioUrl}>
                 Trình duyệt không hỗ trợ phát âm thanh.
               </audio>
             )}
@@ -169,10 +169,15 @@ export function LessonBlockRenderer({ block }: { block: ValidatedLessonBlock }) 
                 <div className="w-8 h-8 rounded-full bg-indigo-900/60 border border-indigo-700/60 text-xs font-bold text-indigo-300 flex items-center justify-center shrink-0">
                   {line.speaker[0]}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0 flex-1">
                   <span className="text-xs font-semibold text-indigo-400">{line.speaker}</span>
                   <p className="text-sm font-bold text-white">{line.korean}</p>
                   <p className="text-xs text-slate-300">{line.vietnamese}</p>
+                  {line.audioUrl && (
+                    <audio controls preload="none" aria-label={`Âm thanh ${line.speaker}, câu ${idx + 1}: ${line.korean}`} className="w-full max-w-xs h-8" src={line.audioUrl}>
+                      Trình duyệt không hỗ trợ phát âm thanh.
+                    </audio>
+                  )}
                 </div>
               </div>
             ))}

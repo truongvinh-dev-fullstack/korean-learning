@@ -1,18 +1,11 @@
 import { z } from "zod";
 import { ContentStatus, BlockType, QuestionType } from "@prisma/client";
 import { LessonBlockContentMap } from "@/modules/lessons/lesson-block.schema";
+import { canConstructArrangement } from "@/modules/exercises/arrangement";
+export { AudioUrlSchema } from "@/shared/validation/audio-url";
+import { AudioUrlSchema } from "@/shared/validation/audio-url";
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const AUDIO_REGEX = /^(\/[a-zA-Z0-9_\-./]+|https?:\/\/[a-zA-Z0-9_\-./:]+)$/;
-
-export const AudioUrlSchema = z
-  .string()
-  .trim()
-  .refine(
-    (val) => !val || AUDIO_REGEX.test(val),
-    "Đường dẫn âm thanh phải là đường dẫn nội bộ (bắt đầu bằng '/') hoặc URL hợp lệ (bắt đầu bằng 'http://' hoặc 'https://'). Không hỗ trợ tải file trực tiếp."
-  );
-
 // 1. Course Schema
 export const CourseFormSchema = z.object({
   title: z
@@ -98,14 +91,16 @@ export const LessonFormSchema = z.object({
 export type LessonFormData = z.infer<typeof LessonFormSchema>;
 
 // 4. Lesson Block Schema
-export const LessonBlockFormSchema = z.object({
+export const LessonBlockFieldsSchema = z.object({
   lessonId: z.string().min(1, "Bài học không hợp lệ"),
   type: z.nativeEnum(BlockType, {
     message: "Loại khối nội dung không hợp lệ",
   }),
   displayOrder: z.coerce.number().int().min(0).optional(),
   content: z.unknown(),
-}).superRefine((data, ctx) => {
+});
+export const LessonBlockPatchSchema = LessonBlockFieldsSchema.partial();
+export const LessonBlockFormSchema = LessonBlockFieldsSchema.superRefine((data, ctx) => {
   const schema = LessonBlockContentMap[data.type as keyof typeof LessonBlockContentMap];
   if (!schema) {
     ctx.addIssue({
@@ -124,7 +119,11 @@ export const LessonBlockFormSchema = z.object({
       });
     });
   }
-});
+}).transform((data) => ({
+  ...data,
+  // Persist the type-specific parsed content, including defaults and stripped fields.
+  content: LessonBlockContentMap[data.type].parse(data.content),
+}));
 export type LessonBlockFormData = z.infer<typeof LessonBlockFormSchema>;
 
 // 5. Vocabulary Schema
@@ -225,6 +224,13 @@ export const QuestionFormSchema = QuestionFormFieldsSchema.superRefine((data, ct
         code: z.ZodIssueCode.custom,
         message: "Phải nhập đáp án đúng chuẩn cho dạng câu hỏi này",
         path: ["correctAnswer"],
+      });
+    }
+    if (data.type === QuestionType.ARRANGE_SENTENCE && !canConstructArrangement(data.correctAnswer ?? "", data.options.map((o) => o.text))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Cần có các thẻ từ để ghép được đáp án chuẩn, kể cả số lần lặp lại của mỗi từ.",
+        path: ["options"],
       });
     }
   }

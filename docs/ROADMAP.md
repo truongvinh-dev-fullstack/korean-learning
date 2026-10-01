@@ -20,7 +20,7 @@ flowchart LR
 
 ## 2. Phase Breakdown & Milestones
 
-### Phase 0: Specifications & Engineering Baseline (Current Phase)
+### Phase 0: Specifications & Engineering Baseline
 - **Goal**: Lock down product requirements, technical architecture, data model, local setup guide, and agent governance rules before any code is generated.
 - **Deliverables**:
   - `docs/PRODUCT.md`: User journey, functional requirements, scope exclusions.
@@ -48,7 +48,7 @@ flowchart LR
 ### Phase 2: Authentication & User Management
 - **Goal**: Implement secure local credential authentication and Role-Based Access Control (`STUDENT`, `ADMIN`).
 - **Milestones**:
-  - User registration endpoint and UI (`/register`) with input validation via Zod.
+  - User registration endpoint and UI (`/dang-ky`) with input validation via Zod.
   - User login endpoint and UI (`/dang-nhap`) with Better Auth salted scrypt password verification.
   - Session issuance via HTTP-only secure cookie or JWT.
   - Auth context and route protection middleware (`VISITOR` vs `STUDENT` vs `ADMIN`).
@@ -60,9 +60,9 @@ flowchart LR
 - **Goal**: Build the course catalog, enrollment flow, and the rich multi-part lesson reader with audio playback.
 - **Milestones**:
   - Course catalog view (`/catalog`) and course detail page (`/courses/:slug`).
-  - 1-click enrollment action and enrolled course syllabus view (`/courses/:slug/learn`).
+  - 1-click enrollment action and enrolled course syllabus view (`/courses/:slug`).
   - Sequential lesson locking logic (Lesson $N$ unlocked only if Lesson $N-1$ completed).
-  - Lesson Reader UI (`/lessons/:id`) supporting:
+  - Lesson Reader UI (`/courses/:slug/lessons/:lessonSlug`) supporting:
     - Text & Hangul guide with syllable block breakdowns.
     - Vocabulary list with Hangul, English, and Romanization.
     - Grammar explanations with example sentence pairs.
@@ -75,13 +75,13 @@ flowchart LR
 ### Phase 4: Interactive Exercise & Server-Side Grading Engine
 - **Goal**: Deliver a reliable, cheat-resistant exercise system that grades student submissions exclusively on the server.
 - **Milestones**:
-  - Sanitized exercise API endpoint (`GET /api/lessons/:id/exercises`) returning questions without answer keys.
+  - Sanitized exercise API endpoint (`GET /api/exercises/:id`) returning questions without answer keys.
   - Interactive quiz UI supporting four exercise types:
     - Multiple choice (text/audio prompt).
     - Fill-in-the-blank (typing Hangul / particles).
     - Sentence reordering (interactive word tiles).
-    - Word matching (Hangul to English).
-  - Server-side grading endpoint (`POST /api/lessons/:id/exercises/submit`): evaluates answers against protected keys and computes percentage score.
+    - Listening choice (audio prompt with four options). Matching is post-MVP.
+  - Server-side grading endpoint (`POST /api/exercises/:id/submit`): evaluates answers against protected keys and computes percentage score.
   - Quiz result summary screen with explanations and retry options.
 - **Definition of Done**: Student completes quiz; grading occurs strictly on the server; client never receives answer keys; passing threshold ($\ge 80\%$) triggers lesson completion.
 
@@ -106,9 +106,9 @@ flowchart LR
 ### Phase 6: Spaced Repetition (SRS) Review Engine
 - **Goal**: Implement SuperMemo-2 (SM-2) spaced repetition flashcards for long-term vocabulary retention.
 - **Milestones**:
-  - Automatic enqueueing: when a lesson is completed, its vocabulary items are inserted into the student's `SrsCard` deck in `NEW` status.
+  - Automatic enqueueing: when a lesson is completed, its vocabulary items are inserted into the student's `ReviewCard` deck in `NEW` status.
   - SRS queue query: retrieve cards where `dueAt <= NOW()`.
-  - Flashcard Review UI (`/reviews`):
+  - Flashcard Review UI (`/on-tap`):
     - Front: Hangul term, audio playback button, romanization hint toggle.
     - Flip animation: reveals English definition, part of speech, and example sentence.
     - Rating controls: `1: Again`, `2: Hard`, `3: Good`, `4: Easy`.
@@ -121,7 +121,7 @@ flowchart LR
 - **Goal**: Empower administrators to author and maintain curriculum directly through an administrative web portal.
 - **Milestones**:
   - Role guard verifying `role === 'ADMIN'` for `/admin` routes.
-  - Course and module management (create, edit, publish toggle).
+  - Course and chapter management (create, edit, publish toggle).
   - Lesson editor: edit text, Hangul explanations, vocabulary, grammar notes, and dialogue lines.
   - Audio URL validator with an inline audio playback preview.
   - Exercise question editor: create questions, define options, and set protected grading keys.
@@ -132,13 +132,13 @@ flowchart LR
 ### Phase 8 & 9: Verification, Hardening & Local MVP Packaging [COMPLETED]
 - **Goal**: Validate the end-to-end user journey, test edge cases, refine visual styling, and ensure production-grade code quality.
 - **Milestones**:
-  - Complete Playwright E2E test suite covering all 9 MVP user journeys across 6 spec files (7 tests).
-  - Unit and integration tests (11 test files, 122 tests via Vitest).
+  - Complete Playwright E2E test suite covering all 9 MVP user journeys with runtime-error and HTTP-error assertions.
+  - Unit and integration tests (run `pnpm test:run` for the current totals).
   - Clean TypeScript strict compliance (`pnpm typecheck` = 0 errors).
   - Zero linter errors/warnings (`pnpm lint` = 0 errors, 0 warnings).
   - Optimized Next.js production build (`pnpm build`).
   - Exhaustive developer and operations documentation in `docs/LOCAL_DEVELOPMENT.md`.
-  - Deterministic database seed and reset mechanism (`pnpm db:seed`).
+  - Deterministic database seed mechanism for new databases (`pnpm db:seed`).
 - **Definition of Done**: Clean clone passes `pnpm install && pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev`; all tests pass; zero console errors.
 
 ---

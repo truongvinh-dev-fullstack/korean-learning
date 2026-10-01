@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SanitizedExercise, SanitizedQuestion } from "@/modules/exercises/exercise.service";
 import { QuestionType } from "@prisma/client";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import type { ExerciseResultDto } from "@/modules/exercises/result";
 
 export interface ExerciseRunnerProps {
   exercise: SanitizedExercise;
@@ -21,26 +22,6 @@ interface QuestionAnswerState {
   textAnswer?: string;
 }
 
-interface GradedQuestionItem {
-  questionId: string;
-  type: QuestionType;
-  isCorrect: boolean;
-  score: number;
-  maxScore: number;
-  studentAnswerDisplay: string;
-  correctAnswerDisplay: string;
-  explanation: string | null;
-}
-
-interface SubmissionResult {
-  attemptId: string;
-  totalScore: number;
-  maxScore: number;
-  percentage: number;
-  isPassing: boolean;
-  gradedQuestions: GradedQuestionItem[];
-}
-
 export function ExerciseRunner({
   exercise,
   isAuthenticated,
@@ -53,7 +34,7 @@ export function ExerciseRunner({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<SubmissionResult | null>(null);
+  const [result, setResult] = useState<ExerciseResultDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
 

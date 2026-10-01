@@ -10,6 +10,7 @@ import {
   ChapterFormSchema,
   LessonFormSchema,
   LessonBlockFormSchema,
+  LessonBlockPatchSchema,
   VocabularyFormSchema,
   ExerciseFormSchema,
   QuestionFormSchema,
@@ -586,12 +587,28 @@ export class AdminService {
       throw new NotFoundError("Không tìm thấy khối nội dung.");
     }
 
-    const parsed = LessonBlockFormSchema.partial().safeParse(rawData);
+    const parsed = LessonBlockPatchSchema.safeParse(rawData);
     if (!parsed.success) {
       throw new ValidationError("Dữ liệu cập nhật khối nội dung không hợp lệ.", parsed.error.format());
     }
 
-    return this.repo.updateBlock(id, parsed.data);
+    if (parsed.data.type !== undefined && parsed.data.type !== existing.type && parsed.data.content === undefined) {
+      throw new ValidationError("Đổi loại khối cần cung cấp nội dung mới phù hợp.");
+    }
+    const effective = LessonBlockFormSchema.safeParse({
+      lessonId: existing.lessonId,
+      type: existing.type,
+      displayOrder: existing.displayOrder,
+      content: existing.content,
+      ...parsed.data,
+    });
+    if (!effective.success) {
+      throw new ValidationError("Dữ liệu cập nhật khối nội dung không hợp lệ.", effective.error.format());
+    }
+    if (effective.data.lessonId !== existing.lessonId) {
+      throw new ValidationError("Không thể chuyển khối nội dung sang bài học khác.");
+    }
+    return this.repo.updateBlock(id, effective.data);
   }
 
   async deleteBlock(

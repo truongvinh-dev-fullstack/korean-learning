@@ -22,7 +22,7 @@ Dành cho lập trình viên mới clone mã nguồn, chạy lần lượt 6 câ
 
 ```powershell
 # 1. Cài đặt các thư viện phụ thuộc
-pnpm install
+pnpm install --frozen-lockfile
 
 # 2. Tạo file cấu hình môi trường từ mẫu chuẩn; thay DATABASE_URL,
 # POSTGRES_PASSWORD (nếu dùng Docker) và BETTER_AUTH_SECRET bằng giá trị riêng.
@@ -33,7 +33,7 @@ Copy-Item .env.example .env
 pnpm db:up
 
 # 4. Áp dụng toàn bộ lịch sử migrations vào cơ sở dữ liệu
-pnpm db:migrate
+pnpm exec prisma migrate deploy
 
 # 5. Khởi tạo dữ liệu mẫu chuẩn (Giáo trình tiếng Hàn, bài tập, câu hỏi)
 pnpm db:seed
@@ -42,7 +42,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Chỉnh `.env` trước khi chạy bước 3. `DATABASE_URL` phải dùng đúng mật khẩu của PostgreSQL; Docker Compose lấy `POSTGRES_PASSWORD` từ `.env`. Nếu dùng dịch vụ PostgreSQL có sẵn, bỏ qua `pnpm db:up` và tạo database `korean_zero` trên dịch vụ đó. Sau khi hoàn tất, ứng dụng sẽ hoạt động tại: **`http://localhost:3000`**.
+Chỉnh `.env` trước khi chạy bước 3. `DATABASE_URL` phải dùng đúng mật khẩu của PostgreSQL; Docker Compose lấy `POSTGRES_PASSWORD` từ `.env`. Nếu dùng dịch vụ PostgreSQL có sẵn, bỏ qua `pnpm db:up` và tạo database `korean_zero` trên dịch vụ đó. `prisma migrate deploy` chỉ áp dụng migrations đã có; `pnpm db:migrate` dành cho phát triển migrations mới. Chỉ seed ở bước 5 khi cần dữ liệu mẫu trên database mới; không reseed dữ liệu hiện có để kiểm tra một bản sửa. Sau khi hoàn tất, ứng dụng sẽ hoạt động tại: **`http://localhost:3000`**.
 
 Kiểm tra trạng thái kết nối cơ sở dữ liệu và sức khỏe hệ thống:
 ```powershell
@@ -72,30 +72,26 @@ pnpm admin:promote --email=admin@example.com
 
 ---
 
-## 4. Đặt lại Dữ liệu Cục bộ An toàn (Safe Data Reset)
+## 4. Dữ liệu Mẫu và Bảo toàn Database Hiện có
 
-### Cách 1: Cập nhật dữ liệu giáo trình mẫu (không xóa dữ liệu khác)
-Dùng để thêm dữ liệu mẫu còn thiếu và cập nhật trạng thái xuất bản của các bài học mẫu:
+### Khởi tạo hoặc cập nhật giáo trình mẫu
+Seed thêm dữ liệu mẫu còn thiếu và cập nhật các bản ghi mẫu đã có; vì vậy có thể ghi đè phần biên soạn của giáo trình mẫu:
 ```powershell
 pnpm db:seed
 ```
-*Lưu ý: Bài 1–3 được xuất bản; bài 4–8 là bản nháp cho đến khi có nội dung đầy đủ. Lệnh này không xóa tiến độ học viên hoặc nội dung tự tạo.*
+*Lưu ý: Bài 1–3 được xuất bản; bài 4–8 là bản nháp cho đến khi có nội dung đầy đủ. Lệnh này không xóa tiến độ học viên hoặc nội dung tự tạo, nhưng không dùng để xác minh một bản sửa trên dữ liệu hiện có.*
 
-### Cách 2: Làm mới hoàn toàn cơ sở dữ liệu (Clean Hard Reset)
-Dùng khi muốn xóa toàn bộ database và chạy lại migration từ đầu:
-```powershell
-pnpm prisma migrate reset --force
-pnpm db:seed
-```
+### Database hiện có
+Dùng `pnpm exec prisma migrate status` để kiểm tra và `pnpm exec prisma migrate deploy` để áp dụng migrations còn thiếu. Không reset database hoặc xóa Docker volume khi triển khai bản sửa. Sao lưu trước các thao tác có thể thay đổi dữ liệu; `prisma migrate reset` xóa dữ liệu và không thuộc quy trình nghiệm thu.
 
 ---
 
 ## 5. Chạy các Bộ Kiểm thử (Running Test Suites)
 
-Tất cả các bài kiểm thử đều hoạt động độc lập, tự tạo tài khoản kiểm thử cô lập (isolated test users) và không phụ thuộc vào thứ tự chạy:
+Các bộ kiểm thử dùng database riêng có hậu tố `_test` và tài khoản kiểm thử. Runner áp dụng migrations và seed trong database kiểm thử; đặt `TEST_DATABASE_URL` tới một database mới nếu cần tránh thay đổi dữ liệu kiểm thử hiện có. Không trỏ biến này tới database phát triển.
 
 ### 5.1. Unit & Integration Tests (Vitest)
-Chạy toàn bộ 11 bộ kiểm thử đơn vị, quy tắc chấm điểm bảo mật và giải thuật SM-2:
+Chạy toàn bộ kiểm thử đơn vị/tích hợp, quy tắc chấm điểm bảo mật và giải thuật SM-2; số lượng thực tế được in trong kết quả:
 ```powershell
 # Chạy một lần và xuất báo cáo:
 pnpm test:run
@@ -107,7 +103,7 @@ pnpm test
 ### 5.2. End-to-End Tests (Playwright)
 Chạy bộ kiểm thử mô phỏng hành vi người dùng thực tế trên trình duyệt Chromium:
 ```powershell
-# Chạy toàn bộ 7 kịch bản E2E:
+# Chạy toàn bộ kịch bản E2E:
 pnpm test:e2e
 
 # Chạy một file kịch bản cụ thể:
@@ -178,7 +174,7 @@ Thực hiện quy trình nghiệm thu đầy đủ 9 bước của MVP:
 1. **Khách vãng lai xem trang chủ & danh mục**:
    - Mở `http://localhost:3000/`, xem giới thiệu và tính năng.
    - Nhấp vào "Khóa học", duyệt syllabus các chương và bài học.
-   - Mở thử Bài 1 để đọc nội dung và nghe file phát âm mẫu.
+   - Khách có thể xem syllabus; nội dung bài học và audio trong trình đọc yêu cầu đăng nhập và ghi danh.
 2. **Đăng ký tài khoản học viên**:
    - Nhấp "Đăng ký" (`/dang-ky`), nhập thông tin học viên mới.
    - Xác nhận chuyển hướng tự động vào Bảng học tập cá nhân (`/dashboard`).
@@ -187,17 +183,21 @@ Thực hiện quy trình nghiệm thu đầy đủ 9 bước của MVP:
    - Hệ thống tự động chuyển vào Bài 1 của giáo trình.
 4. **Học và hoàn thành bài học**:
    - Đọc các khối kiến thức: Hangul, từ vựng, ngữ pháp, đoạn hội thoại.
-   - Nhấp nút "✓ Đánh dấu hoàn thành bài học", trạng thái bài học chuyển sang "Đã hoàn thành".
+   - Bài đầu mở sau khi ghi danh; bài tiếp theo yêu cầu hoàn thành bài trước. Khóa/chương/bài phải được xuất bản.
 5. **Làm bài tập trắc nghiệm & điền từ**:
    - Cuộn xuống phần bài tập cuối bài: làm câu trắc nghiệm, điền từ, nghe audio và xếp câu.
    - Nộp bài tập, nhận kết quả chấm điểm bảo mật trả về từ máy chủ kèm lời giải chi tiết.
+   - Đạt ít nhất 80% trong một bài tập đã xuất bản của bài học để hoàn thành; nút đánh dấu hoàn thành không bỏ qua điều kiện này. Bài không có bài tập yêu cầu bắt đầu học trước khi hoàn thành.
+   - Khi mất phản hồi nộp bài, thử lại trong cùng phiên để dùng lại khóa idempotency; không tạo lượt làm thứ hai.
 6. **Kiểm tra tiến độ trên Bảng học tập**:
    - Truy cập `/dashboard`.
    - Chuỗi học tập (Streak) hiển thị ngày học đầu tiên ("✔ Đã học hôm nay").
    - Thẻ "Tiếp tục học" gợi ý chuẩn xác Bài 2 tiếp theo.
+   - "Từ đã học" đếm các thẻ từ vựng thực tế của học viên; bài không có từ vựng đóng góp 0.
 7. **Ôn tập Flashcard ngắt quãng (SRS)**:
    - Các từ vựng của bài học đã hoàn thành tự động được nạp vào hàng đợi ôn tập.
    - Nhấp "Ôn ngay" (`/on-tap`), lật thẻ bằng [Phím Cách], đánh giá độ nhớ từ 1 đến 4.
+   - Tab tới nút đánh giá rồi Enter/Space vẫn kích hoạt nút; phím tắt toàn trang chỉ dùng khi focus ở vùng không tương tác. Mất phản hồi thì chọn lại cùng đánh giá để thử lại với cùng khóa.
    - Hoàn thành phiên ôn tập và nhận thông báo cập nhật chuỗi Streak.
 8. **Chặn quyền Học viên truy cập Admin**:
    - Với tài khoản học viên, nhập URL `http://localhost:3000/admin`.
@@ -205,10 +205,12 @@ Thực hiện quy trình nghiệm thu đầy đủ 9 bước của MVP:
 9. **Biên soạn & Xuất bản nội dung của Admin**:
    - Nâng cấp tài khoản thành ADMIN (`pnpm admin:promote --email=...`).
    - Vào `/admin`, tạo một bài học mới ở trạng thái DRAFT.
-   - Thêm khối nội dung TEXT, AUDIO (dùng đường dẫn `/audio/sample-hangul.mp3`) và từ vựng.
+   - Thêm khối TEXT, AUDIO (dùng `/audio/lessons/korean-vowels.ogg`) và từ vựng (ví dụ audio `/audio/vocab/mul.ogg`). Nguồn và giấy phép: `docs/AUDIO_PROVENANCE.md`.
+   - Sửa một khối đã có, lưu rồi tải lại trang để xác nhận dữ liệu. DIALOGUE hỗ trợ audio toàn đoạn và audio từng dòng.
+   - Với ARRANGE_SENTENCE, thêm/sửa/xóa/đổi thứ tự thẻ từ; đáp án phải ghép được từ các thẻ. Từ lặp lại cần các thẻ riêng biệt.
    - Nhấp "Xem trước (Preview)" để kiểm tra bài giảng.
    - Chuyển trạng thái sang PUBLISHED.
-   - Mở tab ẩn danh kiểm tra: học viên đã có thể truy cập bài học mới ngay lập tức.
+   - Tab ẩn danh chỉ xem syllabus. Dùng tài khoản STUDENT đã ghi danh và hoàn thành bài trước để đọc bài mới và làm bài tập; ADMIN preview có thể xem bản nháp.
 
 ---
 

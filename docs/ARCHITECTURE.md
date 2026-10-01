@@ -41,7 +41,7 @@ graph TD
 1. **Single Deployment Unit**: One server process runs the entire application, making local development, testing, and debugging fast and deterministic.
 2. **Encapsulated Domain Modules**: Each module owns its business logic, validation rules, and domain services.
 3. **Strict Layering**: Handlers/Controllers parse requests $\to$ call Domain Services $\to$ call Data Access/ORM repositories. Business logic does not leak into UI components or raw HTTP handlers.
-4. **No Direct Cross-Module Data Tampering**: Modules communicate via explicit internal service interfaces. For instance, the `exercises` module does not write directly to `srs_cards`; instead, when a lesson is completed, it invokes the `progressService` and `srsService` via programmatic service calls.
+4. **No Direct Cross-Module Data Tampering**: Modules communicate via explicit internal service interfaces. For instance, the `exercises` module does not write directly to `ReviewCard`; instead, when a lesson is completed, it invokes the `progressService` and `srsService` via programmatic service calls.
 5. **No External Message Broker Needed**: Event handling (such as enrolling in a course or completing a lesson) is executed synchronously in-process within local database transactions.
 
 ---
@@ -52,7 +52,7 @@ graph TD
 src/
 ├── modules/
 │   ├── auth/          # User authentication, password hashing, session tokens, RBAC
-│   ├── courses/       # Catalog, courses, modules, student enrollment
+│   ├── courses/       # Catalog, courses, chapters, student enrollment
 │   ├── lessons/       # Structured lesson content: Hangul, vocab, grammar, dialogue, audio URLs
 │   ├── exercises/     # Quiz bank, exercise definitions, server-side grading engine
 │   ├── progress/      # Lesson completion tracking, daily activity log, streak engine
@@ -70,83 +70,42 @@ src/
 | Module | Core Responsibilities | Public Service Interface |
 | :--- | :--- | :--- |
 | **`auth`** | Better Auth registration, salted scrypt credential hashing, sessions, and role assertion (`STUDENT`, `ADMIN`). | Better Auth server/client adapters and server session guards. |
-| **`courses`** | Course metadata, syllabus structure, module grouping, student enrollment state. | `courseService.listPublishedCourses()`, `courseService.getCourseBySlug()`, `courseService.enrollStudent()` |
-| **`lessons`** | Ordered lesson retrieval, lesson content blocks (Hangul, Vocab, Grammar, Dialogue, Audio URLs), sequential access enforcement. | `lessonService.getLessonDetails()`, `lessonService.getLessonsForModule()`, `lessonService.isLessonUnlocked()` |
-| **`exercises`** | Exercise generation (sanitized client payload without answers), server-side answer evaluation, score calculation. | `exerciseService.getLessonExercisesSanitized()`, `exerciseService.gradeSubmission()` |
-| **`progress`** | Recording lesson completion, score updates, daily study activity, calculating continuous study streaks. | `progressService.recordLessonCompletion()`, `progressService.getUserStreak()`, `progressService.getCourseProgress()` |
-| **`srs`** | Spaced Repetition card lifecycle, SM-2 interval calculations, fetching due review queue, logging review feedback. | `srsService.enqueueLessonVocabulary()`, `srsService.getDueReviewQueue()`, `srsService.processCardReview()` |
-| **`admin`** | Administrative content authoring, course/lesson/exercise/vocabulary CRUD, publishing state controls. | `adminService.createCourse()`, `adminService.updateLesson()`, `adminService.upsertExercise()` |
+| **`courses`** | Course metadata, syllabus structure, chapter grouping, student enrollment state. | `courseService.getPublishedCatalog()`, `courseService.getCourseBySlug()`, `courseService.enrollStudent()` |
+| **`lessons`** | Ordered lesson retrieval, lesson content blocks and sequential access enforcement. | `lessonService.getPublishedLessonBySlug()`, `lessonService.getPublishedLessonWithNavigation()`, `lessonAccessService.requireAccess()` |
+| **`exercises`** | Sanitized delivery, server grading and saved results. | `exerciseService.getExerciseForStudent()`, `exerciseService.submitAttempt()`, `exerciseService.getAttemptResultForStudent()` |
+| **`progress`** | Lesson completion, scores, daily activity and streaks. | `progressService.completeLesson()`, `progressService.getUserStreak()`, `progressService.getCourseProgress()` |
+| **`srs`** | Card lifecycle, scheduling, due queue and feedback. | `srsService.enqueueLessonVocabulary()`, `srsService.getDueCardsForStudent()`, `srsService.submitCardReview()` |
+| **`admin`** | Content authoring, CRUD and publishing. | `adminService.createCourse()`, `adminService.updateLesson()`, `adminService.createExercise()`, `adminService.updateExercise()` |
 
 ---
 
 ## 3. Route Map & API Surface
 
-### 3.1 Web Pages / UI Route Map
+### 3.1 Current pages
 
-| Route Path | Access Level | Description |
-| :--- | :--- | :--- |
-| `/` | Public (Visitor) | Marketing landing page introducing Hangul fundamentals, features, and course preview. |
-| `/catalog` | Public (Visitor) | Full course catalog showcasing available Korean courses and syllabi. |
-| `/courses/:slug` | Public (Visitor) | Course syllabus details, module listings, and "Enroll" CTA. |
-| `/login` | Public (Guest only) | Email and password sign-in form. Redirects to `/dashboard` if already logged in. |
-| `/register` | Public (Guest only) | New student registration form. Redirects to `/dashboard` upon creation. |
-| `/dashboard` | Protected (Student) | Student home: current active course, progress summary, streak badge, due SRS reviews. |
-| `/courses/:slug/learn` | Protected (Student) | Enrolled course view with module accordion, locked/unlocked lessons, completion checkmarks. |
-| `/lessons/:id` | Protected (Student) | Lesson study interface: Hangul guide, vocabulary, grammar notes, dialogue, audio player. |
-| `/lessons/:id/quiz` | Protected (Student) | Interactive practice quiz for the lesson: multiple choice, fill-in-blank, matching, ordering. |
-| `/reviews` | Protected (Student) | SRS flashcard review session for vocabulary items due today. |
-| `/profile` | Protected (Student) | Student profile, streak calendar, completion statistics, account details. |
-| `/admin` | Protected (Admin) | Content management overview: counts of courses, lessons, users, active enrollments. |
-| `/admin/courses` | Protected (Admin) | Course listing with create/edit/publish options. |
-| `/admin/courses/:id/modules` | Protected (Admin) | Curriculum editor: manage modules and ordered lessons. |
-| `/admin/lessons/:id/edit` | Protected (Admin) | Lesson editor: edit text, Hangul explanations, vocabulary, grammar, dialogues, and audio URLs. |
-| `/admin/lessons/:id/exercises`| Protected (Admin) | Exercise question bank manager: add/edit questions, options, and server grading keys. |
+| Route | Access and purpose |
+| --- | --- |
+| `/`, `/courses`, `/catalog` | Public landing/catalog; /catalog redirects to /courses. |
+| `/courses/[slug]` | Public published syllabus and enrollment action. |
+| `/dang-nhap`, `/dang-ky` | Login and registration. |
+| `/dashboard` | Authenticated student's progress, streak and due-card summary. |
+| `/courses/[slug]/lessons/[lessonSlug]`, `/lessons/[slug]` | Protected readers with enrollment/publication/prerequisite checks; quizzes are embedded. |
+| `/on-tap` | Authenticated SRS review queue. |
+| `/admin`, `/admin/courses`, `/admin/courses/new`, `/admin/courses/[id]/edit` | ADMIN overview and curriculum management. |
+| `/admin/chapters/[id]/lessons` | ADMIN lesson ordering and metadata. |
+| `/admin/lessons/[id]/edit`, `/admin/lessons/[id]/preview` | ADMIN blocks, vocabulary, exercise questions and draft preview. |
 
----
+### 3.2 Current HTTP APIs
 
-### 3.2 REST API Specification
+- Better Auth handles /api/auth/[...all]: sign-up/email, sign-in/email, sign-out, and get-session.
+- POST /api/courses/[id]/enroll creates the authenticated user's enrollment.
+- GET /api/exercises/[id] returns sanitized questions; POST /api/exercises/[id]/submit validates, grades and returns the same saved DTO for submission and replay.
+- POST /api/lessons/[id]/progress supports START and COMPLETE, enforcing enrollment and prerequisites. Completion requires a passing published exercise when one exists.
+- GET /api/srs/due, GET /api/srs/stats, and POST /api/srs/review serve only the session user's cards/activity.
+- ADMIN CRUD/reorder routes under /api/admin cover courses, chapters, lessons, blocks, vocabularies, exercises and questions. Child creation/list routes are nested under their parent; item updates/deletes use item IDs. All enforce the ADMIN guard.
+- Public GET /api/health checks connectivity. Failures return 503 with a fixed message; original diagnostics are logged server-side.
 
-All API endpoints return a standardized JSON response envelope:
-```typescript
-type ApiResponse<T> = 
-  | { success: true; data: T }
-  | { success: false; error: { code: string; message: string; details?: unknown } };
-```
-
-#### Authentication API
-- `POST /api/auth/register` — Body: `{ email, password, name }`. Returns user & session token/cookie.
-- `POST /api/auth/login` — Body: `{ email, password }`. Returns user & session token/cookie.
-- `POST /api/auth/logout` — Invalidates session / clears authentication cookie.
-- `GET /api/auth/me` — Returns currently authenticated user profile and role.
-
-#### Courses & Enrollment API
-- `GET /api/courses` — Returns all published courses with module counts.
-- `GET /api/courses/:slug` — Returns course detail, full syllabus, and current user enrollment status.
-- `POST /api/courses/:id/enroll` — Enrolls the authenticated student in the course.
-
-#### Lessons & Content API
-- `GET /api/lessons/:id` — Returns lesson content (Hangul, vocab, grammar, dialogue with audio URLs). Verifies user is enrolled and lesson is unlocked.
-
-#### Exercises & Grading API
-- `GET /api/lessons/:id/exercises` — Returns quiz questions for the lesson. **Critical**: Server strips all answer keys and grading solutions before returning.
-- `POST /api/lessons/:id/exercises/submit` — Body: `{ answers: [{ exerciseId, studentAnswer }] }`. Server evaluates answers, calculates percentage score, updates lesson completion, updates study streak, seeds vocabulary to SRS queue, and returns detailed question feedback.
-
-#### Progress & Streak API
-- `GET /api/progress/summary` — Returns user's active courses, overall completion percentage, and streak status.
-- `GET /api/progress/streak` — Returns `{ currentStreak, longestStreak, lastActivityDate, weeklyActivity: boolean[] }`.
-
-#### Spaced Repetition (SRS) API
-- `GET /api/srs/queue` — Returns list of vocabulary flashcards due for review today (`dueAt <= NOW()`).
-- `POST /api/srs/review` — Body: `{ cardId, rating: 1 | 2 | 3 | 4 }`. Applies SM-2 algorithm, updates interval/ease factor, and returns updated card schedule.
-
-#### Admin CMS API (Restricted to `ADMIN` role)
-- `POST /api/admin/courses` — Create new course.
-- `PUT /api/admin/courses/:id` — Update course metadata or publish state.
-- `POST /api/admin/courses/:id/modules` — Create module in course.
-- `POST /api/admin/modules/:id/lessons` — Create lesson in module.
-- `PUT /api/admin/lessons/:id` — Update lesson content (text, Hangul, grammar, dialogue, audio URLs).
-- `POST /api/admin/lessons/:id/vocab` — Upsert vocabulary items for lesson.
-- `POST /api/admin/lessons/:id/exercises` — Upsert exercises and server grading keys.
+Domain APIs use { success: true, data } or { success: false, error: { code, message, details? } }. Better Auth and health have their own response contracts. Catalog/lesson server pages load through services rather than public catalog/lesson GET APIs.
 
 ---
 

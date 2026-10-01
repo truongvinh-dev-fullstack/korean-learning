@@ -1,8 +1,14 @@
 import "dotenv/config";
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/shared/db/prisma";
+import { GET } from "@/app/api/health/route";
 
 describe("Health Check & Database Connectivity", () => {
+  it("preserves the successful route response", async () => {
+    const response = await GET();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "ok", app: "healthy", database: "connected" });
+  });
   it("successfully connects to the PostgreSQL database and runs raw query", async () => {
     const result = await prisma.$queryRaw<{ result: number; current_db: string }[]>`
       SELECT 1 as result, current_database() as current_db;

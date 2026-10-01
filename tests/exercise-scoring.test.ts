@@ -477,6 +477,8 @@ describe("Exercise Service & Security Rules", () => {
     });
 
     expect(secondRes.attemptId).toBe(firstRes.attemptId);
+    expect(secondRes).toEqual(firstRes);
+    expect(secondRes.gradedQuestions.map((q) => q.questionId)).toEqual(completeAnswers.map((a) => a.questionId));
 
     // Verify only ONE attempt was created in database for this key
     const count = await prisma.exerciseAttempt.count({

@@ -23,6 +23,8 @@ export default defineConfig({
     },
   ],
   webServer: {
+    stdout: "pipe",
+    stderr: "pipe",
     command: "pnpm exec tsx scripts/prepare-test-db.ts && pnpm dev -p 3100",
     url: "http://localhost:3100",
     env: { DATABASE_URL: process.env.DATABASE_URL, BETTER_AUTH_URL: "http://localhost:3100", NEXT_PUBLIC_APP_URL: "http://localhost:3100" },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AudioUrlSchema } from "@/shared/validation/audio-url";
 
 // 1. Text Block
 export const TextBlockContentSchema = z.object({
@@ -14,7 +15,7 @@ export const HangulItemSchema = z.object({
   romanization: z.string().min(1),
   strokeCount: z.number().int().positive().optional(),
   soundHint: z.string().optional(),
-  audioUrl: z.string().optional(),
+  audioUrl: AudioUrlSchema.optional(),
   explanation: z.string().optional(),
 });
 export type HangulItem = z.infer<typeof HangulItemSchema>;
@@ -33,12 +34,12 @@ export const VocabularyBlockItemSchema = z.object({
   vietnamese: z.string().min(1),
   english: z.string().min(1),
   partOfSpeech: z.string().optional(),
-  audioUrl: z.string().optional(),
+  audioUrl: AudioUrlSchema.optional(),
   example: z
     .object({
       korean: z.string().min(1),
       vietnamese: z.string().min(1),
-      audioUrl: z.string().optional(),
+      audioUrl: AudioUrlSchema.optional(),
     })
     .optional(),
 });
@@ -55,7 +56,7 @@ export const GrammarExampleSchema = z.object({
   korean: z.string().min(1),
   vietnamese: z.string().min(1),
   note: z.string().optional(),
-  audioUrl: z.string().optional(),
+  audioUrl: AudioUrlSchema.optional(),
 });
 export type GrammarExample = z.infer<typeof GrammarExampleSchema>;
 
@@ -72,20 +73,20 @@ export const DialogueLineSchema = z.object({
   speaker: z.string().min(1),
   korean: z.string().min(1),
   vietnamese: z.string().min(1),
-  audioUrl: z.string().optional(),
+  audioUrl: AudioUrlSchema.optional(),
 });
 export type DialogueLine = z.infer<typeof DialogueLineSchema>;
 
 export const DialogueBlockContentSchema = z.object({
   title: z.string().optional(),
-  audioUrl: z.string().optional(),
+  audioUrl: AudioUrlSchema.optional(),
   lines: z.array(DialogueLineSchema).min(1, "Dialogue block must have at least one line"),
 });
 export type DialogueBlockContent = z.infer<typeof DialogueBlockContentSchema>;
 
 // 6. Audio Block
 export const AudioBlockContentSchema = z.object({
-  audioUrl: z.string().min(1, "Audio URL is required"),
+  audioUrl: AudioUrlSchema.refine((value) => value.length > 0, "Audio URL is required"),
   title: z.string().optional(),
   caption: z.string().optional(),
   transcript: z.string().optional(),

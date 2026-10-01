@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ReviewRating, CardState } from "@prisma/client";
 import { DueFlashcardItem } from "@/modules/srs/srs.service";
@@ -34,6 +34,8 @@ export function FlashcardRunner({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const requestInFlight = useRef(false);
+  const pendingReview = useRef<{ cardId: string; rating: ReviewRating; idempotencyKey: string } | null>(null);
 
   const currentCard: DueFlashcardItem | undefined = cards[currentIndex];
 
@@ -56,28 +58,36 @@ export function FlashcardRunner({
 
   const handleRate = useCallback(
     async (rating: ReviewRating) => {
-      if (!currentCard || isSubmitting) return;
+      if (!currentCard || isFinished || requestInFlight.current) return;
+      if (pendingReview.current?.cardId !== currentCard.id) pendingReview.current = null;
+      if (pendingReview.current && pendingReview.current.rating !== rating) {
+        setErrorMessage("Đánh giá trước chưa được xác nhận. Chọn lại đánh giá đó để thử lại.");
+        return;
+      }
+      const operation = pendingReview.current ?? {
+        cardId: currentCard.id, rating, idempotencyKey: crypto.randomUUID(),
+      };
+      pendingReview.current = operation;
+      requestInFlight.current = true;
 
       setIsSubmitting(true);
       setErrorMessage(null);
-
-      const idempotencyKey = crypto.randomUUID();
 
       try {
         const res = await fetch("/api/srs/review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cardId: currentCard.id,
-            rating,
-            idempotencyKey,
-          }),
+          body: JSON.stringify(operation),
         });
 
         const data = await res.json();
         if (!res.ok || !data.success) {
           throw new Error(data.error?.message || "Lỗi khi lưu kết quả ôn tập.");
         }
+        if (data.data?.cardId !== operation.cardId || data.data?.rating !== operation.rating) {
+          throw new Error("Kết quả ôn tập không khớp. Vui lòng thử lại.");
+        }
+        pendingReview.current = null;
 
         setReviewedCount((prev) => prev + 1);
 
@@ -92,18 +102,20 @@ export function FlashcardRunner({
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi kết nối.");
       } finally {
+        requestInFlight.current = false;
         setIsSubmitting(false);
       }
     },
-    [currentCard, isSubmitting, currentIndex, cards.length]
+    [currentCard, isFinished, currentIndex, cards.length]
   );
 
   // Keyboard Shortcuts: Space/Enter to flip, 1-4 for ratings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      if (!currentCard || isFinished || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.repeat || requestInFlight.current) return;
+      if (!(e.target instanceof Element)) return;
+      const target = e.target;
+      if (target.closest("button, a, input, textarea, select, audio, video, [contenteditable]:not([contenteditable='false']), [role~='button'], [role~='link'], [role~='checkbox'], [role~='radio'], [role~='switch'], [role~='textbox'], [role~='combobox'], [role~='listbox'], [role~='option'], [role~='slider'], [role~='spinbutton'], [role~='menuitem'], [role~='menuitemcheckbox'], [role~='menuitemradio'], [role~='tab'], [role~='treeitem'], [role~='searchbox'], [role~='scrollbar'], [role~='gridcell']")) {
         return;
       }
 
@@ -138,7 +150,7 @@ export function FlashcardRunner({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleFlip, handleRate, isFlipped, isSubmitting]);
+  }, [handleFlip, handleRate, isFlipped, isSubmitting, currentCard, isFinished]);
 
   // EMPTY STATE: No cards due today
   if (cards.length === 0) {
