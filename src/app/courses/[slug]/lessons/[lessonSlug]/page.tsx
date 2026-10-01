@@ -12,6 +12,8 @@ import { ExerciseRunner } from "@/components/exercises/exercise-runner";
 import { LessonProgressStatus } from "@prisma/client";
 import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
 import { EnrollButton } from "@/components/courses/enroll-button";
+import { VocabularyAudioButton } from "@/components/lessons/vocabulary-audio-button";
+import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
 
 interface LessonPageProps {
   params: Promise<{
@@ -131,7 +133,7 @@ export default async function LessonReaderPage({ params }: LessonPageProps) {
       {/* Structured Content Blocks */}
       <main className="space-y-6">
         {lesson.blocks.map((block) => (
-          <LessonBlockRenderer key={block.id} block={block} />
+          <LessonBlockRenderer key={block.id} block={block} vocabularies={lesson.vocabularies} />
         ))}
       </main>
 
@@ -155,7 +157,10 @@ export default async function LessonReaderPage({ params }: LessonPageProps) {
                 {lesson.vocabularies.map((vocab) => (
                   <tr key={vocab.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="py-3 px-3 font-bold text-white text-base">
-                      {vocab.hangul}
+                      <div className="flex items-center gap-2">
+                        <span>{vocab.hangul}</span>
+                        <VocabularyAudioButton hangul={vocab.hangul} audioUrl={getVocabularyAudioUrl(vocab.hangul, vocab.audioUrl)} />
+                      </div>
                     </td>
                     <td className="py-3 px-3 font-mono text-indigo-400">
                       {vocab.romanization}
@@ -171,6 +176,7 @@ export default async function LessonReaderPage({ params }: LessonPageProps) {
               </tbody>
             </table>
           </div>
+          <a href="/audio/vocab/ATTRIBUTION.txt" target="_blank" rel="noreferrer" className="inline-block text-xs text-slate-400 underline hover:text-indigo-300">Nguồn âm thanh từ vựng</a>
         </section>
       )}
 

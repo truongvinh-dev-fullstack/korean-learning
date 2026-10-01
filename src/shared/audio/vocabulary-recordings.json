@@ -1,0 +1,66 @@
+[
+  {
+    "hangul": "아이",
+    "audioUrl": "/audio/vocab/ai.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EC%95%84%EC%9D%B4.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "책",
+    "audioUrl": "/audio/vocab/chaek.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EC%B1%85.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "학생",
+    "audioUrl": "/audio/vocab/haksaeng.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%ED%95%99%EC%83%9D.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "집",
+    "audioUrl": "/audio/vocab/jip.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EC%A7%91.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "물",
+    "audioUrl": "/audio/vocab/mul.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EB%AC%BC.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "눈",
+    "audioUrl": "/audio/vocab/nun.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EB%88%88.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "선생님",
+    "audioUrl": "/audio/vocab/seonsaengnim.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EC%84%A0%EC%83%9D%EB%8B%98.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  },
+  {
+    "hangul": "손",
+    "audioUrl": "/audio/vocab/son.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ko-%EC%86%90.ogg",
+    "author": "HappyMidnight",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+  }
+]

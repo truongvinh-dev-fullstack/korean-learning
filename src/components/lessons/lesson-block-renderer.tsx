@@ -1,7 +1,12 @@
 import React from "react";
 import { ValidatedLessonBlock } from "@/modules/lessons/lesson-block.schema";
+import { VocabularyAudioButton } from "./vocabulary-audio-button";
+import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
 
-export function LessonBlockRenderer({ block }: { block: ValidatedLessonBlock }) {
+export function LessonBlockRenderer({ block, vocabularies = [] }: {
+  block: ValidatedLessonBlock;
+  vocabularies?: readonly { hangul: string; audioUrl?: string | null }[];
+}) {
   switch (block.type) {
     case "TEXT": {
       const { title, markdown } = block.content;
@@ -73,10 +78,11 @@ export function LessonBlockRenderer({ block }: { block: ValidatedLessonBlock }) 
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xl font-bold text-white tracking-tight">
                         {word.hangul}
                       </span>
+                      <VocabularyAudioButton hangul={word.hangul} audioUrl={getVocabularyAudioUrl(word.hangul, word.audioUrl, vocabularies)} />
                       <span className="text-xs font-semibold text-indigo-400 font-mono">
                         [{word.romanization}]
                       </span>
@@ -100,15 +106,10 @@ export function LessonBlockRenderer({ block }: { block: ValidatedLessonBlock }) 
                     <p className="text-slate-400">{word.example.vietnamese}</p>
                   </div>
                 )}
-
-                {word.audioUrl && (
-                  <audio controls className="w-full h-7 mt-1" src={word.audioUrl}>
-                    Trình duyệt không hỗ trợ phát âm thanh.
-                  </audio>
-                )}
               </div>
             ))}
           </div>
+          <a href="/audio/vocab/ATTRIBUTION.txt" target="_blank" rel="noreferrer" className="inline-block text-xs text-slate-400 underline hover:text-indigo-300">Nguồn âm thanh từ vựng</a>
         </section>
       );
     }

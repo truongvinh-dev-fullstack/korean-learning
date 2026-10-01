@@ -1,0 +1,57 @@
+Korean Zero vocabulary recordings
+
+/audio/vocab/ai.ogg
+아이
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EC%95%84%EC%9D%B4.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/chaek.ogg
+책
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EC%B1%85.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/haksaeng.ogg
+학생
+Source: https://commons.wikimedia.org/wiki/File:Ko-%ED%95%99%EC%83%9D.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/jip.ogg
+집
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EC%A7%91.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/mul.ogg
+물
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EB%AC%BC.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/nun.ogg
+눈
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EB%88%88.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/seonsaengnim.ogg
+선생님
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EC%84%A0%EC%83%9D%EB%8B%98.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.
+
+/audio/vocab/son.ogg
+손
+Source: https://commons.wikimedia.org/wiki/File:Ko-%EC%86%90.ogg
+Author: HappyMidnight
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0)
+Redistributed without modification.

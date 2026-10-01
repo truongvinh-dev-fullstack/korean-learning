@@ -4,6 +4,8 @@ import { getServerSession } from "@/shared/auth/session";
 import { adminService } from "@/modules/admin/admin.service";
 import { validateLessonBlockRecord } from "@/modules/lessons/lesson-block.schema";
 import { LessonBlockRenderer } from "@/components/lessons/lesson-block-renderer";
+import { VocabularyAudioButton } from "@/components/lessons/vocabulary-audio-button";
+import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
 
 export default async function AdminLessonPreviewPage({
   params,
@@ -96,7 +98,7 @@ export default async function AdminLessonPreviewPage({
         {/* Lesson Blocks Content Stream */}
         <div className="space-y-6">
           {validatedBlocks.map((block) => (
-            <LessonBlockRenderer key={block.id} block={block} />
+            <LessonBlockRenderer key={block.id} block={block} vocabularies={lesson.vocabularies} />
           ))}
 
           {validatedBlocks.length === 0 && (
@@ -127,10 +129,11 @@ export default async function AdminLessonPreviewPage({
                   className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-indigo-600/50 transition-colors flex items-center justify-between gap-3 shadow-sm"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-lg font-bold text-white font-sans">
                         {vocab.hangul}
                       </span>
+                      <VocabularyAudioButton hangul={vocab.hangul} audioUrl={getVocabularyAudioUrl(vocab.hangul, vocab.audioUrl)} />
                       <span className="text-xs font-mono text-indigo-400">
                         [{vocab.romanization}]
                       </span>
@@ -145,11 +148,6 @@ export default async function AdminLessonPreviewPage({
                     )}
                   </div>
 
-                  {vocab.audioUrl && (
-                    <audio controls className="h-7 w-28 shrink-0" src={vocab.audioUrl}>
-                      Audio
-                    </audio>
-                  )}
                 </div>
               ))}
             </div>

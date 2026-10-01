@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { VocabularyFormSchema } from "@/modules/admin/admin.schema";
+import { VocabularyAudioButton } from "@/components/lessons/vocabulary-audio-button";
 
 export interface VocabularyItem {
   id: string;
@@ -398,6 +399,7 @@ export function LessonVocabEditor({
                   {formErrors.audioUrl && (
                     <p className="text-xs text-rose-400">{formErrors.audioUrl}</p>
                   )}
+                  <VocabularyAudioButton hangul={formData.hangul.trim() || "từ vựng"} audioUrl={formData.audioUrl} showLabel />
                 </div>
               </div>
 
