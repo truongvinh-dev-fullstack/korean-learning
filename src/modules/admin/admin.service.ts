@@ -13,6 +13,7 @@ import {
   VocabularyFormSchema,
   ExerciseFormSchema,
   QuestionFormSchema,
+  QuestionPatchSchema,
   ReorderSchema,
 } from "./admin.schema";
 import { prisma } from "@/shared/db/prisma";
@@ -195,14 +196,6 @@ export class AdminService {
       throw new NotFoundError("Không tìm thấy khóa học để xóa.");
     }
 
-    // Safe deletion check: enrollments
-    const enrollments = await this.repo.countCourseEnrollments(id);
-    if (enrollments > 0) {
-      throw new ConflictError(
-        `Không thể xóa khóa học vì đã có ${enrollments} học viên đăng ký. Hãy chuyển trạng thái sang DRAFT hoặc ARCHIVED.`
-      );
-    }
-
     return this.repo.deleteCourse(id);
   }
 
@@ -336,14 +329,6 @@ export class AdminService {
     const existing = await this.repo.findChapterById(id);
     if (!existing) {
       throw new NotFoundError("Không tìm thấy chương học để xóa.");
-    }
-
-    // Safe deletion check: lessons with student progress
-    const studentProgressCount = await this.repo.countChapterStudentProgress(id);
-    if (studentProgressCount > 0) {
-      throw new ConflictError(
-        `Không thể xóa chương học vì đã có ${studentProgressCount} lượt học viên hoàn thành bài học trong chương này.`
-      );
     }
 
     return this.repo.deleteChapter(id);
@@ -922,11 +907,37 @@ export class AdminService {
       throw new NotFoundError("Không tìm thấy câu hỏi để cập nhật.");
     }
 
-    const parsed = QuestionFormSchema.partial().safeParse(rawData);
+    if (await this.repo.countSubmittedAttemptsForExercise(existing.exerciseId)) {
+      throw new ConflictError("Không thể sửa câu hỏi hoặc đáp án vì bài tập đã có lượt nộp.");
+    }
+
+    const parsed = QuestionPatchSchema.safeParse(rawData);
     if (!parsed.success) {
       throw new ValidationError("Dữ liệu cập nhật câu hỏi không hợp lệ.", parsed.error.format());
     }
 
+    if (parsed.data.exerciseId && parsed.data.exerciseId !== existing.exerciseId) {
+      throw new ValidationError("Không thể chuyển câu hỏi sang bài tập khác.");
+    }
+    const effective = QuestionFormSchema.safeParse({
+      exerciseId: existing.exerciseId,
+      type: parsed.data.type ?? existing.type,
+      prompt: parsed.data.prompt ?? existing.prompt,
+      audioUrl: parsed.data.audioUrl !== undefined ? parsed.data.audioUrl : existing.audioUrl,
+      correctAnswer: parsed.data.correctAnswer !== undefined ? parsed.data.correctAnswer : existing.correctAnswer,
+      explanation: parsed.data.explanation !== undefined ? parsed.data.explanation : existing.explanation,
+      displayOrder: parsed.data.displayOrder ?? existing.displayOrder,
+      options: parsed.data.options ?? existing.options.map((option) => ({
+        id: option.id,
+        text: option.text,
+        isCorrect: option.isCorrect,
+        explanation: option.explanation,
+        displayOrder: option.displayOrder,
+      })),
+    });
+    if (!effective.success) {
+      throw new ValidationError("Dữ liệu cập nhật câu hỏi không hợp lệ.", effective.error.format());
+    }
     return this.repo.updateQuestion(id, parsed.data);
   }
 
@@ -941,11 +952,8 @@ export class AdminService {
       throw new NotFoundError("Không tìm thấy câu hỏi để xóa.");
     }
 
-    const answers = await this.repo.countAnswersForQuestion(id);
-    if (answers > 0) {
-      throw new ConflictError(
-        `Không thể xóa câu hỏi vì đã có ${answers} câu trả lời của học viên.`
-      );
+    if (await this.repo.countSubmittedAttemptsForExercise(existing.exerciseId)) {
+      throw new ConflictError("Không thể xóa câu hỏi hoặc đáp án vì bài tập đã có lượt nộp.");
     }
 
     return this.repo.deleteQuestion(id);

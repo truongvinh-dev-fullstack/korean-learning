@@ -340,8 +340,15 @@ describe("Exercise Scoring Engine (Pure Functions)", () => {
 describe("Exercise Service & Security Rules", () => {
   let testStudentA: { id: string; email: string };
   let testStudentB: { id: string; email: string };
+  const createdUserIds: string[] = [];
   const seededExerciseId = "e0000000-0000-4000-a000-000000000001";
   const seededLessonId = "l0000000-0000-4000-a000-000000000001";
+  const completeAnswers: StudentQuestionAnswerInput[] = [
+    { questionId: "q0000000-0000-4000-a000-000000000001", selectedOptionId: "o0000000-0000-4000-a000-000000000001" },
+    { questionId: "q0000000-0000-4000-a000-000000000002", selectedOptionId: "o0000000-0000-4000-a000-000000000005" },
+    { questionId: "q0000000-0000-4000-a000-000000000003", textAnswer: "유" },
+    { questionId: "q0000000-0000-4000-a000-000000000004", selectedOptionId: "o0000000-0000-4000-a000-000000000009" },
+  ];
 
   beforeEach(async () => {
     const timestamp = Date.now() + Math.floor(Math.random() * 10000);
@@ -362,6 +369,7 @@ describe("Exercise Service & Security Rules", () => {
         role: "STUDENT",
       },
     });
+    createdUserIds.push(testStudentA.id, testStudentB.id);
 
     // Enroll student A in course so lesson progress can be recorded
     const course = await prisma.course.findFirstOrThrow({
@@ -376,22 +384,7 @@ describe("Exercise Service & Security Rules", () => {
   });
 
   afterAll(async () => {
-    // Clean up attempts, progress and users created in tests
-    await prisma.attemptAnswer.deleteMany({
-      where: { attempt: { user: { email: { contains: "ex_student_" } } } },
-    });
-    await prisma.exerciseAttempt.deleteMany({
-      where: { user: { email: { contains: "ex_student_" } } },
-    });
-    await prisma.lessonProgress.deleteMany({
-      where: { user: { email: { contains: "ex_student_" } } },
-    });
-    await prisma.enrollment.deleteMany({
-      where: { user: { email: { contains: "ex_student_" } } },
-    });
-    await prisma.user.deleteMany({
-      where: { email: { contains: "ex_student_" } },
-    });
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
   });
 
   it("rejects submissions for nonexistent or unpublished exercises", async () => {
@@ -465,12 +458,7 @@ describe("Exercise Service & Security Rules", () => {
 
   it("handles duplicate network submissions idempotently", async () => {
     const idempotencyKey = `test-idem-${Date.now()}`;
-    const answers: StudentQuestionAnswerInput[] = [
-      {
-        questionId: "q0000000-0000-4000-a000-000000000001",
-        selectedOptionId: "o0000000-0000-4000-a000-000000000001",
-      },
-    ];
+    const answers = completeAnswers;
 
     // First submission
     const firstRes = await exerciseService.submitAttempt({
@@ -502,7 +490,7 @@ describe("Exercise Service & Security Rules", () => {
     const sub = await exerciseService.submitAttempt({
       userId: testStudentA.id,
       exerciseId: seededExerciseId,
-      answers: [],
+      answers: completeAnswers,
     });
 
     // Student A can view

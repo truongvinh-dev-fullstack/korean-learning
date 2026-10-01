@@ -17,7 +17,11 @@ export class CourseService {
     return courses.map((course) => {
       const chapterCount = course.chapters.length;
       const lessonCount = course.chapters.reduce(
-        (total, chapter) => total + chapter._count.lessons,
+        (total, chapter) => total + chapter.lessons.length,
+        0
+      );
+      const estimatedMinutes = course.chapters.reduce(
+        (total, chapter) => total + chapter.lessons.reduce((minutes, lesson) => minutes + lesson.estimatedMinutes, 0),
         0
       );
 
@@ -31,6 +35,7 @@ export class CourseService {
         displayOrder: course.displayOrder,
         chapterCount,
         lessonCount,
+        estimatedMinutes,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt,
       };

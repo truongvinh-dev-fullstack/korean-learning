@@ -1,5 +1,7 @@
 import "dotenv/config";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { randomUUID } from "node:crypto";
+import { prisma } from "@/shared/db/prisma";
 import {
   sanitizeExerciseForStudent,
   exerciseService,
@@ -8,6 +10,13 @@ import {
 import { QuestionType } from "@prisma/client";
 
 describe("Exercise Retrieval & Answer Sanitization (Cheat Protection)", () => {
+  const userId = `sanitizer-${randomUUID()}`;
+  beforeAll(async () => {
+    const course = await prisma.course.findUniqueOrThrow({ where: { slug: "tieng-han-tu-con-so-0" } });
+    await prisma.user.create({ data: { id: userId, email: `${userId}@example.com`, name: "Sanitizer", role: "STUDENT" } });
+    await prisma.enrollment.create({ data: { userId, courseId: course.id } });
+  });
+  afterAll(async () => { await prisma.user.delete({ where: { id: userId } }); });
   const mockExerciseWithAnswers: RawExerciseWithGrading = {
     id: "ex-123",
     lessonId: "les-456",
@@ -126,7 +135,7 @@ describe("Exercise Retrieval & Answer Sanitization (Cheat Protection)", () => {
 
   it("retrieves real seeded exercise from database without leaking answers", async () => {
     const exerciseId = "e0000000-0000-4000-a000-000000000001";
-    const studentExercise = await exerciseService.getExerciseForStudent(exerciseId);
+    const studentExercise = await exerciseService.getExerciseForStudent(exerciseId, userId);
 
     expect(studentExercise).not.toBeNull();
     expect(studentExercise?.id).toBe(exerciseId);
@@ -148,7 +157,7 @@ describe("Exercise Retrieval & Answer Sanitization (Cheat Protection)", () => {
 
   it("retrieves lesson exercises for student without leaking answers across all questions", async () => {
     const lessonId = "l0000000-0000-4000-a000-000000000001";
-    const exercises = await exerciseService.getLessonExercisesForStudent(lessonId);
+    const exercises = await exerciseService.getLessonExercisesForStudent(lessonId, userId);
 
     expect(exercises.length).toBeGreaterThan(0);
     const exercise = exercises[0];

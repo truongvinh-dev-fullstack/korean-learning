@@ -11,6 +11,7 @@ export interface CourseCardProps {
     level: string;
     chapterCount?: number;
     lessonCount?: number;
+    estimatedMinutes?: number;
   };
   actionText?: string;
   actionHref?: string;
@@ -73,6 +74,13 @@ export function CourseCard({
         <p className="text-sm text-slate-300 leading-relaxed mb-6 line-clamp-3">
           {course.description}
         </p>
+        {course.estimatedMinutes !== undefined && course.estimatedMinutes > 0 && (
+          <p className="mb-4 text-xs text-slate-400">
+            ⏱ Thời gian hoàn thành ước tính: {course.estimatedMinutes >= 60
+              ? `${Math.floor(course.estimatedMinutes / 60)} giờ${course.estimatedMinutes % 60 ? ` ${course.estimatedMinutes % 60} phút` : ""}`
+              : `${course.estimatedMinutes} phút`}
+          </p>
+        )}
       </div>
 
       <div className="space-y-4 pt-4 border-t border-slate-800/60">

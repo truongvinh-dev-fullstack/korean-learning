@@ -27,12 +27,9 @@ export class CourseRepository {
           where: { status: ContentStatus.PUBLISHED },
           select: {
             id: true,
-            _count: {
-              select: {
-                lessons: {
-                  where: { status: ContentStatus.PUBLISHED },
-                },
-              },
+            lessons: {
+              where: { status: ContentStatus.PUBLISHED },
+              select: { estimatedMinutes: true },
             },
           },
         },

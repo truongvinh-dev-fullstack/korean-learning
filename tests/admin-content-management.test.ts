@@ -18,6 +18,8 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
 
   let testCourseId: string;
   let testChapterId: string;
+  const createdCourseIds: string[] = [];
+  const createdUserIds: string[] = [];
 
   beforeEach(async () => {
     const ts = Date.now() + Math.floor(Math.random() * 10000);
@@ -33,6 +35,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
       },
     });
     testCourseId = course.id;
+    createdCourseIds.push(course.id);
 
     const chapter = await prisma.chapter.create({
       data: {
@@ -48,31 +51,8 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
   });
 
   afterAll(async () => {
-    // Cleanup any test data
-    await prisma.reviewLog.deleteMany({
-      where: { user: { email: { contains: "adm_student_" } } },
-    });
-    await prisma.reviewCard.deleteMany({
-      where: { user: { email: { contains: "adm_student_" } } },
-    });
-    await prisma.attemptAnswer.deleteMany({
-      where: { attempt: { user: { email: { contains: "adm_student_" } } } },
-    });
-    await prisma.exerciseAttempt.deleteMany({
-      where: { user: { email: { contains: "adm_student_" } } },
-    });
-    await prisma.lessonProgress.deleteMany({
-      where: { user: { email: { contains: "adm_student_" } } },
-    });
-    await prisma.enrollment.deleteMany({
-      where: { user: { email: { contains: "adm_student_" } } },
-    });
-    await prisma.user.deleteMany({
-      where: { email: { contains: "adm_student_" } },
-    });
-    await prisma.course.deleteMany({
-      where: { slug: { contains: "test-" } },
-    });
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+    await prisma.course.deleteMany({ where: { id: { in: createdCourseIds } } });
   });
 
   describe("1. Role-Based Access Control (Strict Server-Side Authorization)", () => {
@@ -219,6 +199,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
           role: "STUDENT",
         },
       });
+      createdUserIds.push(testStudent.id);
 
       await prisma.enrollment.create({
         data: {
@@ -248,6 +229,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
           role: "STUDENT",
         },
       });
+      createdUserIds.push(testStudent.id);
 
       await prisma.lessonProgress.create({
         data: {
@@ -286,6 +268,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
           role: "STUDENT",
         },
       });
+      createdUserIds.push(testStudent.id);
 
       await prisma.reviewCard.create({
         data: {
@@ -335,6 +318,8 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
     it("creates draft lesson, previews it, publishes it, verifies student access and edits again", async () => {
       const ts = Date.now();
       const slug = `bai-hoc-lifecycle-${ts}`;
+      const learner = await prisma.user.create({ data: { id: crypto.randomUUID(), email: `admin-lifecycle-${ts}@example.com`, name: "Lifecycle learner" } });
+      createdUserIds.push(learner.id);
 
       // 1. Admin creates a DRAFT lesson
       const draftLesson = await adminService.createLesson(adminUser, {
@@ -392,9 +377,11 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
         options: [
           { text: "Học sinh", isCorrect: false },
           { text: "Thầy/cô giáo", isCorrect: true },
+          { text: "Bác sĩ", isCorrect: false },
+          { text: "Nhân viên", isCorrect: false },
         ],
       });
-      expect(question?.options.length).toBe(2);
+      expect(question?.options.length).toBe(4);
 
       // 5. Admin can PREVIEW the draft lesson before publishing
       const previewData = await adminService.getLessonPreview(adminUser, draftLesson.id);
@@ -404,7 +391,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
       expect(previewData.exercises.length).toBe(1);
 
       // 6. Student CANNOT view draft lesson
-      const studentViewBeforePublish = await lessonService.getPublishedLessonBySlug(slug);
+      const studentViewBeforePublish = await lessonService.getPublishedLessonBySlug(slug, learner.id);
       expect(studentViewBeforePublish).toBeNull();
 
       // 7. Admin PUBLISHES the lesson
@@ -414,7 +401,8 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
       expect(publishedLesson.status).toBe(ContentStatus.PUBLISHED);
 
       // 8. Student CAN now access and view the published lesson
-      const studentViewAfterPublish = await lessonService.getPublishedLessonBySlug(slug);
+      await prisma.enrollment.create({ data: { userId: learner.id, courseId: testCourseId } });
+      const studentViewAfterPublish = await lessonService.getPublishedLessonBySlug(slug, learner.id);
       expect(studentViewAfterPublish).not.toBeNull();
       expect(studentViewAfterPublish?.title).toBe(draftLesson.title);
 
@@ -428,7 +416,7 @@ describe("Phase 8: Content Administration (RBAC, Validation, Safe Deletion & CRU
       expect(reEditedLesson.estimatedMinutes).toBe(25);
 
       // 10. Student sees the updated title immediately
-      const studentViewUpdated = await lessonService.getPublishedLessonBySlug(slug);
+      const studentViewUpdated = await lessonService.getPublishedLessonBySlug(slug, learner.id);
       expect(studentViewUpdated?.title).toBe(editedTitle);
     });
   });

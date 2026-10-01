@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { lessonService } from "@/modules/lessons/lesson.service";
 import { exerciseService } from "@/modules/exercises/exercise.service";
@@ -10,6 +10,8 @@ import { LessonNavigation } from "@/components/lessons/lesson-navigation";
 import { LessonProgressAction } from "@/components/lessons/lesson-progress-action";
 import { ExerciseRunner } from "@/components/exercises/exercise-runner";
 import { LessonProgressStatus } from "@prisma/client";
+import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
+import { EnrollButton } from "@/components/courses/enroll-button";
 
 interface LessonPageProps {
   params: Promise<{
@@ -19,8 +21,9 @@ interface LessonPageProps {
 }
 
 export async function generateMetadata({ params }: LessonPageProps): Promise<Metadata> {
-  const { lessonSlug } = await params;
-  const lessonData = await lessonService.getPublishedLessonBySlug(lessonSlug);
+  const { slug, lessonSlug } = await params;
+  const decision = await lessonAccessService.resolveBySlug(null, lessonSlug);
+  const lessonData = decision.kind === "NOT_FOUND" || decision.lesson.chapter.course.slug !== slug ? null : decision.lesson;
 
   if (!lessonData) {
     return { title: "Không tìm thấy bài học - Korean Zero" };
@@ -34,7 +37,28 @@ export async function generateMetadata({ params }: LessonPageProps): Promise<Met
 
 export default async function LessonReaderPage({ params }: LessonPageProps) {
   const { slug: courseSlug, lessonSlug } = await params;
-  const navData = await lessonService.getPublishedLessonWithNavigation(lessonSlug);
+  const session = await getServerSession();
+  const user = session?.user;
+  const decision = await lessonAccessService.resolveBySlug(user?.id, lessonSlug);
+  if (decision.kind === "NOT_FOUND" || decision.lesson.chapter.course.slug !== courseSlug) notFound();
+  const lessonPath = `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`;
+  if (decision.kind === "UNAUTHENTICATED") redirect(`/dang-nhap?callbackUrl=${encodeURIComponent(lessonPath)}`);
+  if (decision.kind === "NOT_ENROLLED" || decision.kind === "LOCKED_BY_PREVIOUS_LESSON") {
+    return <main className="max-w-2xl mx-auto px-4 py-16 space-y-6">
+      <Link href={`/courses/${courseSlug}`} className="text-indigo-300 hover:underline">← {decision.lesson.chapter.course.title}</Link>
+      <h1 className="text-3xl font-bold text-white">{decision.lesson.title}</h1>
+      {decision.kind === "NOT_ENROLLED" ? <>
+        <p className="text-slate-300">Ghi danh khóa học để mở bài học này.</p>
+        <EnrollButton courseId={decision.lesson.chapter.courseId} courseSlug={courseSlug} firstLessonSlug={lessonSlug} isEnrolled={false} isAuthenticated={true} />
+      </> : <>
+        <p className="text-slate-300">Hoàn thành bài học trước để mở khóa bài này.</p>
+        <Link className="text-indigo-300 hover:underline" href={`/courses/${courseSlug}/lessons/${decision.requiredLesson.slug}`}>
+          Tiếp tục: {decision.requiredLesson.title}
+        </Link>
+      </>}
+    </main>;
+  }
+  const navData = await lessonService.getPublishedLessonWithNavigation(lessonSlug, user!.id);
 
   if (!navData) {
     notFound();
@@ -43,15 +67,8 @@ export default async function LessonReaderPage({ params }: LessonPageProps) {
   const { lesson, previousLesson, nextLesson, totalCourseLessons, currentLessonIndex } =
     navData;
 
-  const session = await getServerSession();
-  const user = session?.user;
-
-  let userStatus: LessonProgressStatus = LessonProgressStatus.NOT_STARTED;
-  if (user) {
-    userStatus = await progressService.getLessonStatus(user.id, lesson.id);
-  }
-
-  const exercises = await exerciseService.getLessonExercisesForStudent(lesson.id);
+  const userStatus: LessonProgressStatus = await progressService.getLessonStatus(user!.id, lesson.id);
+  const exercises = await exerciseService.getLessonExercisesForStudent(lesson.id, user!.id);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">

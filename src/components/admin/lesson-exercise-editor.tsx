@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ContentStatus, QuestionType } from "@prisma/client";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
-import { ExerciseFormSchema, QuestionFormSchema } from "@/modules/admin/admin.schema";
+import { AudioUrlSchema, ExerciseFormSchema, QuestionFormSchema } from "@/modules/admin/admin.schema";
 
 export interface QuestionOptionItem {
   id?: string;
@@ -629,6 +629,9 @@ export function LessonExerciseEditor({
                     placeholder="/audio/exercise/q1.mp3"
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500"
                   />
+                  {questionFormData.audioUrl.trim() && AudioUrlSchema.safeParse(questionFormData.audioUrl.trim()).success && (
+                    <audio aria-label="Nghe thử âm thanh câu hỏi" controls preload="none" src={questionFormData.audioUrl.trim()} className="w-full max-w-sm" />
+                  )}
                 </div>
               </div>
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/shared/auth/session";
 import { srsService } from "@/modules/srs/srs.service";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 export async function GET() {
   try {
@@ -39,16 +40,6 @@ export async function GET() {
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

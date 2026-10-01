@@ -3,6 +3,7 @@ import { getServerSession } from "@/shared/auth/session";
 import { srsService } from "@/modules/srs/srs.service";
 import { SubmitCardReviewSchema } from "@/modules/srs/srs.schema";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,16 +65,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi khi chấm điểm thẻ.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

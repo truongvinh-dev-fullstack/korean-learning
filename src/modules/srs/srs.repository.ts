@@ -1,6 +1,7 @@
 import { prisma } from "@/shared/db/prisma";
-import { CardState, ReviewRating } from "@prisma/client";
-import { NextCardSchedule, ReviewCardState } from "./srs-scheduler";
+import { CardState, ReviewRating, Prisma } from "@prisma/client";
+import { calculateNextSchedule } from "./srs-scheduler";
+import { ConflictError, ForbiddenError, NotFoundError } from "@/shared/errors/domain-errors";
 
 export interface CreateReviewCardInput {
   userId: string;
@@ -11,8 +12,6 @@ export interface RecordReviewInput {
   userId: string;
   cardId: string;
   rating: ReviewRating;
-  currentCard: ReviewCardState;
-  nextSchedule: NextCardSchedule;
   idempotencyKey?: string;
   now: Date;
   vietnamDate: string;
@@ -23,10 +22,10 @@ export class SrsRepository {
    * Idempotently creates review cards for a user.
    * Duplicate (userId, vocabularyId) pairs are safely skipped.
    */
-  async createReviewCards(cards: CreateReviewCardInput[]) {
+  async createReviewCards(cards: CreateReviewCardInput[], db: Prisma.TransactionClient | typeof prisma = prisma) {
     if (cards.length === 0) return { count: 0 };
 
-    return prisma.reviewCard.createMany({
+    return db.reviewCard.createMany({
       data: cards.map((c) => ({
         userId: c.userId,
         vocabularyId: c.vocabularyId,
@@ -124,16 +123,19 @@ export class SrsRepository {
     userId,
     cardId,
     rating,
-    currentCard,
-    nextSchedule,
     idempotencyKey,
     now,
     vietnamDate,
   }: RecordReviewInput) {
     return prisma.$transaction(async (tx) => {
-      // 1. Update ReviewCard
-      const updatedCard = await tx.reviewCard.update({
-        where: { id: cardId },
+      const currentCard = await tx.reviewCard.findUnique({ where: { id: cardId } });
+      if (!currentCard) throw new NotFoundError("Không tìm thấy thẻ từ vựng này.");
+      if (currentCard.userId !== userId) throw new ForbiddenError("Bạn không có quyền chỉnh sửa thẻ ôn tập của học viên khác.");
+      if (currentCard.dueAt > now) throw new ConflictError("Thẻ này chưa đến hạn ôn tập.");
+
+      const nextSchedule = calculateNextSchedule(currentCard, rating, now);
+      const updated = await tx.reviewCard.updateMany({
+        where: { id: cardId, userId, dueAt: { lte: now }, lastReviewedAt: currentCard.lastReviewedAt },
         data: {
           state: nextSchedule.state,
           intervalDays: nextSchedule.intervalDays,
@@ -143,10 +145,9 @@ export class SrsRepository {
           dueAt: nextSchedule.dueAt,
           lastReviewedAt: nextSchedule.lastReviewedAt,
         },
-        include: {
-          vocabulary: true,
-        },
       });
+      if (updated.count !== 1) throw new ConflictError("Thẻ này đã được ôn tập. Vui lòng tải lại danh sách.");
+      const updatedCard = await tx.reviewCard.findUniqueOrThrow({ where: { id: cardId } });
 
       // 2. Create ReviewLog
       const log = await tx.reviewLog.create({

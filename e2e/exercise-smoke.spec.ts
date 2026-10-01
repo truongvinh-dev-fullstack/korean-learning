@@ -1,11 +1,16 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import { enrollInSeedCourse, passFirstSeedExercise } from "./helpers/learning";
+import { cleanupAccounts } from "./helpers/cleanup";
 
 test.describe("Student Exercise Flow & Security Verification", () => {
+  const createdEmails: string[] = [];
+  test.afterEach(async () => { await cleanupAccounts(createdEmails.splice(0)); });
   test("completes interactive exercise with cheat protection and full feedback loop", async ({
     page,
   }) => {
     const timestamp = Date.now();
     const testEmail = `playwright_student_1_${timestamp}@example.com`;
+    createdEmails.push(testEmail);
     const testPassword = "Password123!";
     const testName = "Học Viên Playwright 1";
 
@@ -21,6 +26,7 @@ test.describe("Student Exercise Flow & Security Verification", () => {
 
     // Wait for redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+    await enrollInSeedCourse(page);
 
     // 2. Navigate to Lesson 1 which contains Exercise 1
     const lessonUrl = "/courses/tieng-han-tu-con-so-0/lessons/bai-1-nguyen-am-co-ban";
@@ -135,6 +141,7 @@ test.describe("Student Exercise Flow & Security Verification", () => {
   }) => {
     const timestamp = Date.now();
     const testEmail = `playwright_student_2_${timestamp}@example.com`;
+    createdEmails.push(testEmail);
     const testPassword = "Password123!";
     const testName = "Học Viên Playwright 2";
 
@@ -146,6 +153,8 @@ test.describe("Student Exercise Flow & Security Verification", () => {
     await page.fill("#confirmPassword", testPassword);
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+    await enrollInSeedCourse(page);
+    await passFirstSeedExercise(page);
 
     // 2. Navigate to Lesson 2
     const lesson2Url = "/courses/tieng-han-tu-con-so-0/lessons/bai-2-phu-am-co-ban";

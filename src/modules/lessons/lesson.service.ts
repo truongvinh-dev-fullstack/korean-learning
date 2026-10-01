@@ -1,5 +1,7 @@
 import { lessonRepository, LessonRepository } from "./lesson.repository";
 import { validateLessonBlockRecord, ValidatedLessonBlock } from "./lesson-block.schema";
+import { lessonAccessService } from "./lesson-access.service";
+import { ForbiddenError, UnauthorizedError } from "@/shared/errors/domain-errors";
 
 export class LessonService {
   constructor(private readonly repo: LessonRepository = lessonRepository) {}
@@ -8,7 +10,11 @@ export class LessonService {
    * Retrieves a published lesson by slug with validated, discriminated blocks.
    * Throws an error or returns null if not found. Never returns unvalidated JSON blocks.
    */
-  async getPublishedLessonBySlug(slug: string) {
+  async getPublishedLessonBySlug(slug: string, userId: string | null | undefined) {
+    const decision = await lessonAccessService.resolveBySlug(userId, slug);
+    if (decision.kind === "NOT_FOUND") return null;
+    if (decision.kind === "UNAUTHENTICATED") throw new UnauthorizedError();
+    if (decision.kind !== "AVAILABLE") throw new ForbiddenError();
     const rawLesson = await this.repo.findPublishedLessonBySlug(slug);
     if (!rawLesson) {
       return null;
@@ -58,8 +64,8 @@ export class LessonService {
   /**
    * Retrieves a published lesson with previous and next navigation within the course curriculum.
    */
-  async getPublishedLessonWithNavigation(slug: string) {
-    const lesson = await this.getPublishedLessonBySlug(slug);
+  async getPublishedLessonWithNavigation(slug: string, userId: string) {
+    const lesson = await this.getPublishedLessonBySlug(slug, userId);
     if (!lesson) {
       return null;
     }

@@ -12,6 +12,7 @@ export class ExerciseRepository {
       where: {
         id,
         status: ContentStatus.PUBLISHED,
+        lesson: { status: ContentStatus.PUBLISHED, chapter: { status: ContentStatus.PUBLISHED, course: { status: ContentStatus.PUBLISHED } } },
       },
       include: {
         questions: {
@@ -34,6 +35,7 @@ export class ExerciseRepository {
       where: {
         lessonId,
         status: ContentStatus.PUBLISHED,
+        lesson: { status: ContentStatus.PUBLISHED, chapter: { status: ContentStatus.PUBLISHED, course: { status: ContentStatus.PUBLISHED } } },
       },
       orderBy: { displayOrder: "asc" },
       include: {

@@ -3,11 +3,11 @@ import { z } from "zod";
 import { getServerSession } from "@/shared/auth/session";
 import { progressService } from "@/modules/progress/progress.service";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 const UpdateProgressSchema = z.object({
   action: z.enum(["START", "COMPLETE"]),
-  score: z.number().int().min(0).max(100).optional(),
-});
+}).strict();
 
 export async function POST(
   req: NextRequest,
@@ -46,7 +46,7 @@ export async function POST(
       );
     }
 
-    const { action, score } = parseResult.data;
+    const { action } = parseResult.data;
 
     let result;
     if (action === "START") {
@@ -60,7 +60,6 @@ export async function POST(
         requestingUserId: session.user.id,
         targetUserId: session.user.id,
         lessonId,
-        score,
       });
     }
 
@@ -85,16 +84,6 @@ export async function POST(
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

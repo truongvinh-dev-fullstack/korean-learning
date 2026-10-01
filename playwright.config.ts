@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { testDatabaseUrl } from "./scripts/test-database";
+
+process.env.DATABASE_URL = testDatabaseUrl();
+process.env.KOREAN_TEST_DATABASE_ACTIVE = "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -9,7 +13,7 @@ export default defineConfig({
   timeout: 60 * 1000,
   reporter: "list",
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     trace: "on-first-retry",
   },
   projects: [
@@ -19,9 +23,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: true,
+    command: "pnpm exec tsx scripts/prepare-test-db.ts && pnpm dev -p 3100",
+    url: "http://localhost:3100",
+    env: { DATABASE_URL: process.env.DATABASE_URL, BETTER_AUTH_URL: "http://localhost:3100", NEXT_PUBLIC_APP_URL: "http://localhost:3100" },
+    reuseExistingServer: false,
     timeout: 120 * 1000,
   },
 });

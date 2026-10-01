@@ -40,7 +40,8 @@ export function sanitizeCallbackUrl(
   // Check if it's an absolute URL
   try {
     const parsed = new URL(trimmed);
-    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
+    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL;
+    if (!appOrigin) return fallback;
     const allowedOrigins = [
       new URL(appOrigin).origin,
       "http://localhost:3000",

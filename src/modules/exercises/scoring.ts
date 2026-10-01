@@ -1,5 +1,6 @@
 import { QuestionType } from "@prisma/client";
 import { RawExerciseWithGrading, RawQuestionWithGrading } from "./exercise.service";
+import { ValidationError } from "@/shared/errors/domain-errors";
 
 export interface StudentQuestionAnswerInput {
   questionId: string;
@@ -26,6 +27,44 @@ export interface ExerciseGradingResult {
   percentage: number;
   isPassing: boolean;
   gradedQuestions: QuestionGradingResult[];
+}
+
+/** Validate the complete answer set before grading or creating an attempt. */
+export function validateExerciseAnswers(
+  exercise: RawExerciseWithGrading,
+  answers: StudentQuestionAnswerInput[]
+): void {
+  const invalid = () => new ValidationError("Câu trả lời không hợp lệ hoặc chưa đầy đủ.");
+  if (exercise.questions.length === 0 || answers.length !== exercise.questions.length) throw invalid();
+  const byId = new Map<string, StudentQuestionAnswerInput>();
+  for (const answer of answers) {
+    if (!answer?.questionId || byId.has(answer.questionId)) throw invalid();
+    byId.set(answer.questionId, answer);
+  }
+  for (const question of exercise.questions) {
+    const answer = byId.get(question.id);
+    if (!answer) throw invalid();
+    const hasOption = typeof answer.selectedOptionId === "string" && answer.selectedOptionId.length > 0;
+    const hasTiles = Array.isArray(answer.selectedOptionIds) && answer.selectedOptionIds.length > 0;
+    const hasText = typeof answer.textAnswer === "string" && answer.textAnswer.trim().length > 0;
+    switch (question.type) {
+      case QuestionType.MULTIPLE_CHOICE:
+      case QuestionType.LISTENING_CHOICE:
+        if (!hasOption || hasTiles || hasText || !question.options.some((option) => option.id === answer.selectedOptionId)) throw invalid();
+        break;
+      case QuestionType.FILL_BLANK:
+        if (!hasText || hasOption || hasTiles) throw invalid();
+        break;
+      case QuestionType.ARRANGE_SENTENCE: {
+        if (!hasTiles || hasOption || hasText) throw invalid();
+        const ids = answer.selectedOptionIds!;
+        if (new Set(ids).size !== ids.length || ids.some((id) => !question.options.some((option) => option.id === id))) throw invalid();
+        break;
+      }
+      default:
+        throw invalid();
+    }
+  }
 }
 
 /**

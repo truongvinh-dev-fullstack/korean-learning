@@ -6,11 +6,13 @@ import {
   ForbiddenError,
   NotFoundError,
   ContentNotPublishedError,
+  ConflictError,
 } from "@/shared/errors/domain-errors";
 import { getVietnamDateString, calculateStreak } from "@/shared/utils/date";
 import { LessonProgressStatus } from "@prisma/client";
 import { CourseProgressData, UserStreakData } from "./progress.types";
 import { srsService } from "@/modules/srs/srs.service";
+import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
 
 export class ProgressService {
   constructor(
@@ -47,6 +49,7 @@ export class ProgressService {
     lessonId: string;
   }) {
     this.assertUserOwnsProgress(requestingUserId, targetUserId);
+    await lessonAccessService.requireAccess(targetUserId, lessonId);
 
     const lesson = await this.lessonRepo.findPublishedLessonById(lessonId);
     if (!lesson) {
@@ -67,14 +70,13 @@ export class ProgressService {
     requestingUserId,
     targetUserId,
     lessonId,
-    score = 100,
   }: {
     requestingUserId: string;
     targetUserId: string;
     lessonId: string;
-    score?: number;
   }) {
     this.assertUserOwnsProgress(requestingUserId, targetUserId);
+    await lessonAccessService.requireAccess(targetUserId, lessonId);
 
     const lesson = await this.lessonRepo.findPublishedLessonById(lessonId);
     if (!lesson) {
@@ -83,10 +85,17 @@ export class ProgressService {
       );
     }
 
-    // Idempotency check: if already completed, do not increment streak or daily stat again
     const existing = await this.repo.findLessonProgress(targetUserId, lessonId);
-    if (existing && existing.status === LessonProgressStatus.COMPLETED) {
-      return existing;
+    const exerciseIds = await this.repo.findPublishedExerciseIds(lessonId);
+    let score = 100;
+    if (exerciseIds.length > 0) {
+      const passingAttempt = await this.repo.findBestPassingAttempt(targetUserId, exerciseIds);
+      if (!passingAttempt) {
+        throw new ConflictError("Bạn cần đạt bài tập trước khi hoàn thành bài học.");
+      }
+      score = passingAttempt.percentage;
+    } else if (!existing || (existing.status !== LessonProgressStatus.IN_PROGRESS && existing.status !== LessonProgressStatus.COMPLETED)) {
+      throw new ConflictError("Bạn cần bắt đầu bài học trước khi hoàn thành.");
     }
 
     const now = new Date();
@@ -99,10 +108,8 @@ export class ProgressService {
       score,
       now,
       vietnamDate,
+      enqueueVocabulary: (tx) => srsService.enqueueLessonVocabularyInTransaction(targetUserId, lessonId, tx),
     });
-
-    // Enqueue lesson vocabulary into student's SRS review queue
-    await srsService.enqueueLessonVocabulary(targetUserId, lessonId);
 
     return progress;
   }

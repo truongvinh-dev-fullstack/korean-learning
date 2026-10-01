@@ -1,10 +1,12 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import { cleanupAccounts } from "./helpers/cleanup";
 
 test.describe("2. Authentication Journey (Register, Logout, Error Handling, Login)", () => {
   const ts = Date.now();
   const testEmail = `auth_student_${ts}@example.com`;
   const testPassword = "Password123!";
   const testName = `Học Viên Test ${ts}`;
+  test.afterEach(async () => { await cleanupAccounts([testEmail]); });
 
   test("validates registration form, registers user, logs out, handles bad login, and logs back in", async ({
     page,

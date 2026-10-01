@@ -1,16 +1,13 @@
 import { prisma } from "@/shared/db/prisma";
-import { ReviewRating, CardState } from "@prisma/client";
+import { ReviewRating, CardState, Prisma } from "@prisma/client";
 import { srsRepository, SrsRepository } from "./srs.repository";
-import { calculateNextSchedule } from "./srs-scheduler";
 import {
   UnauthorizedError,
   ForbiddenError,
   NotFoundError,
+  ConflictError,
 } from "@/shared/errors/domain-errors";
-import {
-  getVietnamDateString,
-  getVietnamEndOfDayUtc,
-} from "@/shared/utils/date";
+import { getVietnamDateString } from "@/shared/utils/date";
 
 export interface DueFlashcardItem {
   id: string;
@@ -60,9 +57,14 @@ export class SrsService {
     return result.count;
   }
 
+  async enqueueLessonVocabularyInTransaction(userId: string, lessonId: string, tx: Prisma.TransactionClient): Promise<number> {
+    const vocabularies = await tx.vocabulary.findMany({ where: { lessonId }, select: { id: true } });
+    const result = await this.repo.createReviewCards(vocabularies.map((v) => ({ userId, vocabularyId: v.id })), tx);
+    return result.count;
+  }
+
   /**
-   * Retrieves all flashcards due for a student today, using Asia/Ho_Chi_Minh timezone
-   * to determine the cutoff for the user's current study day.
+   * Retrieves only cards due at the current server time.
    */
   async getDueCardsForStudent(
     userId: string,
@@ -72,9 +74,7 @@ export class SrsService {
       throw new UnauthorizedError("Yêu cầu đăng nhập để truy cập ôn tập từ vựng.");
     }
 
-    // Group cards up to the end of user's local study day (23:59:59.999 +07:00)
-    const dueCutoffUtc = getVietnamEndOfDayUtc(referenceDate);
-    const cards = await this.repo.findDueCardsForUser(userId, dueCutoffUtc);
+    const cards = await this.repo.findDueCardsForUser(userId, referenceDate);
 
     return cards.map((c) => ({
       id: c.id,
@@ -106,8 +106,7 @@ export class SrsService {
   ): Promise<number> {
     if (!userId) return 0;
 
-    const dueCutoffUtc = getVietnamEndOfDayUtc(referenceDate);
-    return this.repo.countDueCardsForUser(userId, dueCutoffUtc);
+    return this.repo.countDueCardsForUser(userId, referenceDate);
   }
 
   /**
@@ -136,12 +135,23 @@ export class SrsService {
       throw new UnauthorizedError("Yêu cầu đăng nhập để ghi nhận ôn tập.");
     }
 
-    // 1. Idempotency Check
+    // Verify ownership before considering an idempotency replay.
+    const card = await this.repo.findCardById(cardId);
+    if (!card) {
+      throw new NotFoundError("Không tìm thấy thẻ từ vựng này.");
+    }
+    if (card.userId !== userId) {
+      throw new ForbiddenError("Bạn không có quyền chỉnh sửa thẻ ôn tập của học viên khác.");
+    }
+
     if (idempotencyKey) {
       const existingLog = await this.repo.findReviewLogByIdempotencyKey(
         idempotencyKey
       );
       if (existingLog) {
+        if (existingLog.userId !== userId || existingLog.cardId !== cardId) {
+          throw new ForbiddenError("Bạn không có quyền truy cập lượt ôn tập này.");
+        }
         return {
           cardId: existingLog.cardId,
           rating: existingLog.rating,
@@ -155,29 +165,16 @@ export class SrsService {
       }
     }
 
-    // 2. Fetch Card and verify existence & ownership
-    const card = await this.repo.findCardById(cardId);
-    if (!card) {
-      throw new NotFoundError("Không tìm thấy thẻ từ vựng này.");
+    if (card.dueAt > now) {
+      throw new ConflictError("Thẻ này chưa đến hạn ôn tập.");
     }
-
-    if (card.userId !== userId) {
-      throw new ForbiddenError(
-        "Bạn không có quyền chỉnh sửa thẻ ôn tập của học viên khác."
-      );
-    }
-
-    // 3. Pure server-side scheduling calculation
-    const nextSchedule = calculateNextSchedule(card, rating, now);
     const vietnamDate = getVietnamDateString(now);
 
-    // 4. Save transactionally
+    // Recheck due time and update conditionally inside the transaction.
     const { card: updatedCard, log } = await this.repo.recordReviewTransaction({
       userId,
       cardId,
       rating,
-      currentCard: card,
-      nextSchedule,
       idempotencyKey,
       now,
       vietnamDate,

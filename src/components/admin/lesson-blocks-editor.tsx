@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BlockType } from "@prisma/client";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { AudioUrlSchema } from "@/modules/admin/admin.schema";
 
 export interface LessonBlockItem {
   id: string;
@@ -265,9 +266,9 @@ export function LessonBlocksEditor({
         {blocks.map((block, idx) => (
           <div
             key={block.id}
-            className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-4 hover:border-slate-700 transition-colors"
+            className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-colors"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0 w-full">
               {/* Order Controls */}
               <div className="flex flex-col gap-0.5">
                 <button
@@ -291,21 +292,21 @@ export function LessonBlocksEditor({
               </div>
 
               {/* Block Info */}
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/60 font-mono">
                     {block.type}
                   </span>
                   <span className="text-xs font-semibold text-white">Khối thứ #{idx + 1}</span>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono line-clamp-1 max-w-lg">
+                <div className="text-[11px] text-slate-400 font-mono truncate max-w-full">
                   {JSON.stringify(block.content)}
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
               <button
                 type="button"
                 onClick={() => openEditModal(block)}
@@ -483,8 +484,11 @@ export function LessonBlocksEditor({
                         <p className="text-[10px] text-slate-500">
                           Chấp nhận đường dẫn nội bộ (bắt đầu bằng /) hoặc URL HTTPS. Không hỗ trợ tải file trực tiếp.
                         </p>
+                        {audioUrl.trim() && AudioUrlSchema.safeParse(audioUrl.trim()).success && (
+                          <audio aria-label="Nghe thử âm thanh" controls preload="none" src={audioUrl.trim()} className="w-full max-w-sm" />
+                        )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="block text-xs font-semibold text-slate-300">Tiêu đề đoạn nghe</label>
                           <input

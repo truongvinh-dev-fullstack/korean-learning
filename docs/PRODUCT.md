@@ -47,7 +47,7 @@ flowchart TD
    - **Vocabulary Bank**: Key terms with Korean Hangul, English definition, part of speech, and example sentences.
    - **Grammar Explanations**: Concise grammatical formulas (e.g., `-이에요/예요`, subject particles `-이/가`, topic particles `-은/는`) with contextual usage rules.
    - **Interactive Dialogue**: Conversational scenarios between two speakers with Hangul scripts, English translations, and individual line audio triggers.
-   - **Audio Player**: Web-native HTML5 audio playback consuming externally hosted audio URLs (e.g., open-source Wikimedia Commons Korean audio clips or static CDN assets).
+   - **Audio Player**: Web-native HTML5 playback of verified repository-local audio assets under `public/audio` or validated configured audio URLs.
 6. **Interactive Exercises with Server-Side Grading**: At the end of a lesson, the student undertakes a practice quiz featuring:
    - Multiple Choice Questions (Hangul to English, English to Hangul, audio prompt identification).
    - Fill-in-the-blank (typing Hangul or selecting particle).
@@ -87,7 +87,7 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 | **File Uploads** | Audio files and images are provided via external URLs or pre-seeded public assets. Avoids multipart storage complexity. |
 | **Community Forum / Comments** | Interaction is focused on the solo learner loop (learn -> quiz -> review). |
 | **Native Mobile App** | Fully responsive web UI built for mobile and desktop viewports. |
-| **Redis & Background Queues** | SRS schedules and streak updates are computed synchronously in SQLite/Postgres via efficient transactional queries. |
+| **Redis & Background Queues** | SRS schedules and streak updates are computed synchronously in PostgreSQL transactions. |
 | **Cloud Deployment** | Operates as a local-first development stack requiring zero cloud subscriptions or complex infrastructure. |
 
 ---
@@ -101,7 +101,7 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 
 ### FR-2: Authentication & User Accounts
 - **FR-2.1**: Visitors can register an account by providing email, password (min 8 characters), and full name.
-- **FR-2.2**: The system shall hash passwords using a cryptographically secure algorithm (Argon2id or bcrypt).
+- **FR-2.2**: Better Auth shall hash passwords with its salted scrypt implementation; plaintext passwords are never stored.
 - **FR-2.3**: Users can sign in using email and password to obtain an authenticated session (HTTP-only secure cookie or JWT).
 - **FR-2.4**: Roles are strictly differentiated between `STUDENT` and `ADMIN`.
 
@@ -125,8 +125,9 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 - **FR-5.2**: The system must support four exercise archetypes:
   - `MULTIPLE_CHOICE`: 4 options (text or audio prompt) with 1 correct choice.
   - `FILL_BLANK`: Text input for Hangul word or particle.
-  - `SENTENCE_ORDER`: Interactive word tiles that the user arranges into a valid Korean sentence.
-  - `MATCHING`: 4 pairs of Hangul terms and English definitions.
+  - `ARRANGE_SENTENCE`: Interactive word tiles that the user arranges into a valid Korean sentence.
+  - `LISTENING_CHOICE`: Listen to audio and select the correct choice.
+- **MVP scope correction**: `MATCHING` is post-MVP. It is excluded from the current Definition of Done and is not implemented in this batch.
 - **FR-5.3**: Exercise submissions are evaluated exclusively on the server.
 - **FR-5.4**: The grading endpoint shall return: overall score percentage, pass/fail status (passing threshold $\ge 80\%$), question-by-question correctness, and explanatory feedback.
 
@@ -162,11 +163,11 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 - **Performance**: Initial page load under 1.5 seconds locally; server API endpoints respond in under 150ms.
 - **Korean Typography & Readability**: Support clean, legible Korean Hangul typography (using system fonts like `Apple SD Gothic Neo`, `Malgun Gothic`, `Nanum Gothic`, or `Noto Sans KR`) with adequate line-height and font sizes ($\ge 1.25\text{rem}$ for Hangul characters).
 - **Security & Integrity**:
-  - Secure credential storage (Argon2id or bcrypt hash).
+  - Secure credential storage using Better Auth's salted scrypt hash.
   - RBAC protection on all private and administrative endpoints.
   - Exercise grading performed strictly server-side.
   - Input validation using strict schemas (e.g., Zod) on all API endpoints.
-- **Data Persistence**: ACID-compliant relational storage (SQLite locally via ORM) ensuring zero orphan records via foreign keys and transactions.
+- **Data Persistence**: ACID-compliant PostgreSQL storage via Prisma, with foreign keys and transactions.
 - **Accessibility**: Semantic HTML5 tags (`<main>`, `<nav>`, `<article>`, `<button>`), keyboard-navigable flashcards and quizzes, and clear ARIA labels for audio buttons.
 
 ---
@@ -174,7 +175,7 @@ To ensure focus, quality, and robust implementation, boundaries are strictly enf
 ## 7. Definition of Done (DoD)
 
 A feature or phase is declared **Done** only when:
-1. **Specification Alignment**: The implemented behavior matches all functional requirements stated in this document.
+1. **Specification Alignment**: The implemented behavior matches the four MVP exercise types in FR-5.2. `MATCHING` is post-MVP and is not part of this Definition of Done.
 2. **Security Compliance**: Answer keys are never leaked to client payloads; endpoints enforce appropriate role guards (`STUDENT` vs `ADMIN`).
 3. **Automated & Manual Verification**:
    - Unit/integration tests pass for core engines (grading, streak logic, SM-2 calculations).

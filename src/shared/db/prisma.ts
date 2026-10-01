@@ -2,15 +2,14 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import { validateServerEnv } from "@/shared/config/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   pgPool?: Pool;
 };
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/korean_zero?schema=public";
+const connectionString = validateServerEnv(process.env).databaseUrl;
 
 const pool =
   globalForPrisma.pgPool ??

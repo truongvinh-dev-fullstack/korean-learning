@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exerciseService } from "@/modules/exercises/exercise.service";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
+import { getServerSession } from "@/shared/auth/session";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Yêu cầu đăng nhập để xem bài tập." } }, { status: 401 });
+    }
     const { id: exerciseId } = await params;
-    const exercise = await exerciseService.getExerciseForStudent(exerciseId);
+    const exercise = await exerciseService.getExerciseForStudent(exerciseId, session.user.id);
 
     if (!exercise) {
       return NextResponse.json(
@@ -41,16 +47,6 @@ export async function GET(
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

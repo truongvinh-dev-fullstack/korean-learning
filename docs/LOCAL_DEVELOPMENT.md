@@ -24,10 +24,12 @@ Dành cho lập trình viên mới clone mã nguồn, chạy lần lượt 6 câ
 # 1. Cài đặt các thư viện phụ thuộc
 pnpm install
 
-# 2. Tạo file cấu hình môi trường từ mẫu chuẩn
+# 2. Tạo file cấu hình môi trường từ mẫu chuẩn; thay DATABASE_URL,
+# POSTGRES_PASSWORD (nếu dùng Docker) và BETTER_AUTH_SECRET bằng giá trị riêng.
+# Tạo secret bằng: node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 Copy-Item .env.example .env
 
-# 3. Khởi động PostgreSQL container chạy nền (nếu dùng Docker)
+# 3. Khởi động PostgreSQL container (nếu dùng Docker), hoặc dịch vụ PostgreSQL có sẵn
 pnpm db:up
 
 # 4. Áp dụng toàn bộ lịch sử migrations vào cơ sở dữ liệu
@@ -40,7 +42,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-Sau khi hoàn tất, ứng dụng sẽ hoạt động tại: **`http://localhost:3000`**.
+Chỉnh `.env` trước khi chạy bước 3. `DATABASE_URL` phải dùng đúng mật khẩu của PostgreSQL; Docker Compose lấy `POSTGRES_PASSWORD` từ `.env`. Nếu dùng dịch vụ PostgreSQL có sẵn, bỏ qua `pnpm db:up` và tạo database `korean_zero` trên dịch vụ đó. Sau khi hoàn tất, ứng dụng sẽ hoạt động tại: **`http://localhost:3000`**.
 
 Kiểm tra trạng thái kết nối cơ sở dữ liệu và sức khỏe hệ thống:
 ```powershell
@@ -72,12 +74,12 @@ pnpm admin:promote --email=admin@example.com
 
 ## 4. Đặt lại Dữ liệu Cục bộ An toàn (Safe Data Reset)
 
-### Cách 1: Đặt lại dữ liệu chuẩn (Giữ nguyên cấu trúc bảng - Khuyên dùng)
-Dùng khi muốn xóa sạch các dữ liệu rác, bài học thử nghiệm hoặc tiến độ học thử để quay về dữ liệu giáo trình chuẩn ban đầu:
+### Cách 1: Cập nhật dữ liệu giáo trình mẫu (không xóa dữ liệu khác)
+Dùng để thêm dữ liệu mẫu còn thiếu và cập nhật trạng thái xuất bản của các bài học mẫu:
 ```powershell
 pnpm db:seed
 ```
-*Lưu ý: Lệnh này xóa các tiến độ học viên thử nghiệm và khôi phục 8 bài học chuẩn cùng ngân hàng câu hỏi ban đầu một cách xác định (deterministic).*
+*Lưu ý: Bài 1–3 được xuất bản; bài 4–8 là bản nháp cho đến khi có nội dung đầy đủ. Lệnh này không xóa tiến độ học viên hoặc nội dung tự tạo.*
 
 ### Cách 2: Làm mới hoàn toàn cơ sở dữ liệu (Clean Hard Reset)
 Dùng khi muốn xóa toàn bộ database và chạy lại migration từ đầu:
@@ -155,7 +157,7 @@ pnpm build
 
 ### 6.2. Lỗi Sai Mật khẩu Database (`password authentication failed for user "postgres"`)
 - Kiểm tra tài khoản trong file `.env`:
-  - Khi chạy Docker container qua `docker-compose.yml`, tài khoản mặc định là `postgres` / `postgres`.
+  - Khi chạy Docker Compose, dùng giá trị `POSTGRES_PASSWORD` trong `.env`. Thay đổi biến này không đổi mật khẩu của volume PostgreSQL đã tồn tại.
   - Khi chạy PostgreSQL cài tay cục bộ, cập nhật mật khẩu bạn đã đặt khi cài đặt vào `.env`.
 
 ### 6.3. Docker Daemon Không Chạy (`docker: error during connect`)
@@ -211,6 +213,8 @@ Thực hiện quy trình nghiệm thu đầy đủ 9 bước của MVP:
 ---
 
 ## 8. Giới hạn Sao lưu & Phục hồi trong Bản MVP (Backup/Restore Limitations)
+
+Kiểm thử Vitest và Playwright dùng cơ sở dữ liệu PostgreSQL riêng có tên kết thúc bằng `_test` (mặc định `korean_zero_test`). Có thể đặt `TEST_DATABASE_URL` trỏ tới một database `_test` khác. Test runner tự tạo database, áp dụng migration và seed idempotent; không xóa hoặc đặt lại database phát triển. Playwright chạy máy chủ riêng trên cổng 3100 và xóa tài khoản mà mỗi test vừa tạo.
 
 - **Dữ liệu PostgreSQL**: Toàn bộ dữ liệu được lưu trong Docker volume `korean_zero_postgres_data` (hoặc data directory của native Postgres).
 - **Lệnh Sao lưu Cục bộ (Backup)**:

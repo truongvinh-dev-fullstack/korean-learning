@@ -4,6 +4,7 @@ import {
   gradeExerciseAttempt,
   StudentQuestionAnswerInput,
   ExerciseGradingResult,
+  validateExerciseAnswers,
 } from "./scoring";
 import {
   UnauthorizedError,
@@ -11,6 +12,7 @@ import {
   NotFoundError,
 } from "@/shared/errors/domain-errors";
 import { progressService, ProgressService } from "@/modules/progress/progress.service";
+import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
 
 export interface SanitizedQuestionOption {
   id: string;
@@ -116,11 +118,13 @@ export class ExerciseService {
    * Retrieves an exercise sanitized for student delivery.
    * Guaranteed never to leak correct answer flags or answers.
    */
-  async getExerciseForStudent(exerciseId: string): Promise<SanitizedExercise | null> {
+  async getExerciseForStudent(exerciseId: string, userId: string): Promise<SanitizedExercise | null> {
     const rawExercise = await this.repo.findExerciseById(exerciseId);
     if (!rawExercise) {
       return null;
     }
+
+    await lessonAccessService.requireAccess(userId, rawExercise.lessonId);
 
     return sanitizeExerciseForStudent(rawExercise);
   }
@@ -129,8 +133,10 @@ export class ExerciseService {
    * Retrieves all sanitized exercises for a lesson.
    */
   async getLessonExercisesForStudent(
-    lessonId: string
+    lessonId: string,
+    userId: string
   ): Promise<SanitizedExercise[]> {
+    await lessonAccessService.requireAccess(userId, lessonId);
     const rawExercises = await this.repo.findExercisesByLessonId(lessonId);
     return rawExercises.map(sanitizeExerciseForStudent);
   }
@@ -160,20 +166,31 @@ export class ExerciseService {
       throw new UnauthorizedError("Yêu cầu đăng nhập để nộp bài tập.");
     }
 
-    // Check for duplicate network submission with idempotencyKey
-    if (idempotencyKey) {
-      const existing = await this.repo.findAttemptByIdempotencyKey(idempotencyKey);
-      if (existing) {
-        // Return existing attempt result safely
-        return this.getAttemptResultForStudent(existing.id, userId);
-      }
-    }
-
     const rawExercise = await this.repo.findExerciseById(exerciseId);
     if (!rawExercise) {
       throw new NotFoundError(
         "Không tìm thấy bài tập hoặc bài tập chưa được công khai."
       );
+    }
+
+    await lessonAccessService.requireAccess(userId, rawExercise.lessonId);
+    validateExerciseAnswers(rawExercise, answers);
+
+    if (idempotencyKey) {
+      const existing = await this.repo.findAttemptByIdempotencyKey(idempotencyKey);
+      if (existing) {
+        if (existing.userId !== userId || existing.exerciseId !== exerciseId) {
+          throw new ForbiddenError("Bạn không có quyền truy cập lần làm bài này.");
+        }
+        if (existing.isPassing) {
+          await this.progress.completeLesson({
+            requestingUserId: userId,
+            targetUserId: userId,
+            lessonId: rawExercise.lessonId,
+          });
+        }
+        return this.getAttemptResultForStudent(existing.id, userId);
+      }
     }
 
     // Pure server-side grading
@@ -202,7 +219,6 @@ export class ExerciseService {
         requestingUserId: userId,
         targetUserId: userId,
         lessonId: rawExercise.lessonId,
-        score: gradingResult.percentage,
       });
     }
 

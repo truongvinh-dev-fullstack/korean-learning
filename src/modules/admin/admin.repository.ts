@@ -1,5 +1,6 @@
 import { prisma } from "@/shared/db/prisma";
 import { Prisma } from "@prisma/client";
+import { ConflictError } from "@/shared/errors/domain-errors";
 import {
   CourseFormData,
   ChapterFormData,
@@ -77,15 +78,20 @@ export class AdminRepository {
   }
 
   async deleteCourse(id: string) {
-    return prisma.course.delete({
-      where: { id },
-    });
-  }
-
-  async countCourseEnrollments(courseId: string): Promise<number> {
-    return prisma.enrollment.count({
-      where: { courseId },
-    });
+    return prisma.$transaction(async (tx) => {
+      const whereLesson = { chapter: { courseId: id } };
+      const counts = await Promise.all([
+        tx.enrollment.count({ where: { courseId: id } }),
+        tx.lessonProgress.count({ where: { lesson: whereLesson } }),
+        tx.exerciseAttempt.count({ where: { exercise: { lesson: whereLesson } } }),
+        tx.reviewCard.count({ where: { vocabulary: { lesson: whereLesson } } }),
+        tx.reviewLog.count({ where: { card: { vocabulary: { lesson: whereLesson } } } }),
+      ]);
+      if (counts.some((count) => count > 0)) {
+        throw new ConflictError("Không thể xóa khóa học vì đã có dữ liệu học tập của học viên.");
+      }
+      return tx.course.delete({ where: { id } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   // ==========================================
@@ -160,17 +166,21 @@ export class AdminRepository {
   }
 
   async deleteChapter(id: string) {
-    return prisma.chapter.delete({
-      where: { id },
-    });
-  }
-
-  async countChapterStudentProgress(chapterId: string): Promise<number> {
-    return prisma.lessonProgress.count({
-      where: {
-        lesson: { chapterId },
-      },
-    });
+    return prisma.$transaction(async (tx) => {
+      const chapter = await tx.chapter.findUniqueOrThrow({ where: { id }, select: { courseId: true } });
+      const whereLesson = { chapterId: id };
+      const counts = await Promise.all([
+        tx.enrollment.count({ where: { courseId: chapter.courseId } }),
+        tx.lessonProgress.count({ where: { lesson: whereLesson } }),
+        tx.exerciseAttempt.count({ where: { exercise: { lesson: whereLesson } } }),
+        tx.reviewCard.count({ where: { vocabulary: { lesson: whereLesson } } }),
+        tx.reviewLog.count({ where: { card: { vocabulary: { lesson: whereLesson } } } }),
+      ]);
+      if (counts.some((count) => count > 0)) {
+        throw new ConflictError("Không thể xóa chương vì đã có dữ liệu học tập của học viên.");
+      }
+      return tx.chapter.delete({ where: { id } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   // ==========================================
@@ -601,9 +611,9 @@ export class AdminRepository {
     });
   }
 
-  async countAnswersForQuestion(questionId: string): Promise<number> {
-    return prisma.attemptAnswer.count({
-      where: { questionId },
+  async countSubmittedAttemptsForExercise(exerciseId: string): Promise<number> {
+    return prisma.exerciseAttempt.count({
+      where: { exerciseId, submittedAt: { not: null } },
     });
   }
 

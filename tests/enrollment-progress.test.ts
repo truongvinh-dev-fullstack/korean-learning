@@ -17,6 +17,7 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
   let testUserB: { id: string; email: string };
   let publishedCourse: { id: string; slug: string };
   let courseLessons: { id: string; slug: string }[];
+  const createdUserIds: string[] = [];
 
   beforeEach(async () => {
     // 1. Get published course from seed
@@ -25,7 +26,7 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
       include: {
         chapters: {
           include: {
-            lessons: { orderBy: { displayOrder: "asc" } },
+            lessons: { where: { status: "PUBLISHED" }, orderBy: { displayOrder: "asc" } },
           },
           orderBy: { displayOrder: "asc" },
         },
@@ -56,23 +57,19 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
         role: "STUDENT",
       },
     });
+    createdUserIds.push(testUserA.id, testUserB.id);
   });
 
   afterAll(async () => {
-    // Clean up test data
-    await prisma.dailyStudyStat.deleteMany({
-      where: { userId: { startsWith: "test-student-" } },
-    });
-    await prisma.lessonProgress.deleteMany({
-      where: { userId: { startsWith: "test-student-" } },
-    });
-    await prisma.enrollment.deleteMany({
-      where: { userId: { startsWith: "test-student-" } },
-    });
-    await prisma.user.deleteMany({
-      where: { id: { startsWith: "test-student-" } },
-    });
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
   });
+
+  async function persistPassingAttempt(userId: string, lessonId: string) {
+    const exercise = await prisma.exercise.findFirstOrThrow({ where: { lessonId, status: "PUBLISHED" } });
+    await prisma.exerciseAttempt.create({
+      data: { userId, exerciseId: exercise.id, score: 40, maxScore: 40, percentage: 100, isPassing: true, submittedAt: new Date() },
+    });
+  }
 
   // 1. DUPLICATE ENROLLMENT
   describe("Enrollment Rules", () => {
@@ -148,6 +145,7 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
   describe("Idempotent Progress Operations", () => {
     it("starts a lesson idempotently without overwriting timestamp or regressing status", async () => {
       const lesson1 = courseLessons[0];
+      await courseService.enrollStudent(testUserA.id, publishedCourse.id);
 
       // First start
       const progress1 = await progressService.startLesson({
@@ -176,13 +174,14 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
     it("completes a lesson idempotently without duplicating DailyStudyStat counts", async () => {
       const lesson1 = courseLessons[0];
       const todayStr = getVietnamDateString(new Date());
+      await courseService.enrollStudent(testUserA.id, publishedCourse.id);
+      await persistPassingAttempt(testUserA.id, lesson1.id);
 
       // First completion
       const completed1 = await progressService.completeLesson({
         requestingUserId: testUserA.id,
         targetUserId: testUserA.id,
         lessonId: lesson1.id,
-        score: 100,
       });
 
       expect(completed1.status).toBe(LessonProgressStatus.COMPLETED);
@@ -203,7 +202,6 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
         requestingUserId: testUserA.id,
         targetUserId: testUserA.id,
         lessonId: lesson1.id,
-        score: 100,
       });
 
       expect(completed2.id).toBe(completed1.id);
@@ -220,13 +218,32 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
       });
       expect(statAfterSecond?.lessonsCompleted).toBe(1);
     });
+
+    it("retains the highest persisted passing score on retake without another completion", async () => {
+      const lessonId = courseLessons[0].id;
+      await courseService.enrollStudent(testUserA.id, publishedCourse.id);
+      const exercise = await prisma.exercise.findFirstOrThrow({ where: { lessonId, status: "PUBLISHED" } });
+      await prisma.exerciseAttempt.create({ data: { userId: testUserA.id, exerciseId: exercise.id, score: 32, maxScore: 40, percentage: 80, isPassing: true, submittedAt: new Date() } });
+      const request = () => progressService.completeLesson({ requestingUserId: testUserA.id, targetUserId: testUserA.id, lessonId });
+      const first = await request();
+      expect(first.score).toBe(80);
+      await prisma.exerciseAttempt.create({ data: { userId: testUserA.id, exerciseId: exercise.id, score: 40, maxScore: 40, percentage: 100, isPassing: true, submittedAt: new Date() } });
+      const improved = await request();
+      expect(improved.score).toBe(100);
+      expect(improved.completedAt?.getTime()).toBe(first.completedAt?.getTime());
+      expect((await request()).score).toBe(100);
+      const stat = await prisma.dailyStudyStat.findUniqueOrThrow({ where: { userId_date: { userId: testUserA.id, date: getVietnamDateString() } } });
+      expect(stat.lessonsCompleted).toBe(1);
+    });
   });
 
   // 4. ORDERED NEXT & PREVIOUS LESSON NAVIGATION
   describe("Curriculum Ordering & Navigation", () => {
     it("determines correct previous and next lessons across chapters", async () => {
+      await courseService.enrollStudent(testUserA.id, publishedCourse.id);
+      await prisma.lessonProgress.createMany({ data: courseLessons.slice(0, -1).map((lesson) => ({ userId: testUserA.id, lessonId: lesson.id, status: LessonProgressStatus.COMPLETED, completedAt: new Date() })) });
       const firstLessonSlug = courseLessons[0].slug;
-      const firstNav = await lessonService.getPublishedLessonWithNavigation(firstLessonSlug);
+      const firstNav = await lessonService.getPublishedLessonWithNavigation(firstLessonSlug, testUserA.id);
 
       expect(firstNav).toBeDefined();
       expect(firstNav?.previousLesson).toBeNull();
@@ -236,13 +253,13 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
 
       // Middle lesson navigation
       const middleLessonSlug = courseLessons[1].slug;
-      const middleNav = await lessonService.getPublishedLessonWithNavigation(middleLessonSlug);
+      const middleNav = await lessonService.getPublishedLessonWithNavigation(middleLessonSlug, testUserA.id);
       expect(middleNav?.previousLesson?.slug).toBe(courseLessons[0].slug);
       expect(middleNav?.nextLesson?.slug).toBe(courseLessons[2].slug);
 
       // Last lesson navigation
       const lastLessonSlug = courseLessons[courseLessons.length - 1].slug;
-      const lastNav = await lessonService.getPublishedLessonWithNavigation(lastLessonSlug);
+      const lastNav = await lessonService.getPublishedLessonWithNavigation(lastLessonSlug, testUserA.id);
       expect(lastNav?.previousLesson).toBeDefined();
       expect(lastNav?.nextLesson).toBeNull();
       expect(lastNav?.currentLessonIndex).toBe(courseLessons.length);
@@ -266,12 +283,14 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
       expect(initialProgress.isCompleted).toBe(false);
       expect(initialProgress.nextLesson?.slug).toBe(courseLessons[0].slug);
 
-      // Complete 2 lessons out of 8 -> 25%
+      // Complete the first two published lessons.
+      await persistPassingAttempt(testUserA.id, courseLessons[0].id);
       await progressService.completeLesson({
         requestingUserId: testUserA.id,
         targetUserId: testUserA.id,
         lessonId: courseLessons[0].id,
       });
+      await persistPassingAttempt(testUserA.id, courseLessons[1].id);
       await progressService.completeLesson({
         requestingUserId: testUserA.id,
         targetUserId: testUserA.id,
@@ -294,6 +313,7 @@ describe("Phase 5: Enrollment, Lesson Consumption and Progress Tracking", () => 
 
       // Complete all lessons for User B
       for (const lesson of courseLessons) {
+        await persistPassingAttempt(testUserB.id, lesson.id);
         await progressService.completeLesson({
           requestingUserId: testUserB.id,
           targetUserId: testUserB.id,

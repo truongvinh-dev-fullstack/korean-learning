@@ -1,6 +1,18 @@
 import "dotenv/config";
 import { prisma } from "../src/shared/db/prisma";
-import { ContentStatus, BlockType, QuestionType } from "@prisma/client";
+import { ContentStatus, BlockType, QuestionType, Prisma } from "@prisma/client";
+
+async function seedExercise(args: Parameters<typeof prisma.exercise.create>[0]) {
+  const id = args.data.id;
+  if (!id) throw new Error("Seed exercise ID is required");
+  return prisma.exercise.upsert({ where: { id }, update: {}, create: args.data });
+}
+
+async function seedQuestion(args: Parameters<typeof prisma.question.create>[0]) {
+  const id = args.data.id;
+  if (!id) throw new Error("Seed question ID is required");
+  return prisma.question.upsert({ where: { id }, update: {}, create: args.data });
+}
 
 async function main() {
   console.log("Starting deterministic seed for Korean Zero...");
@@ -173,6 +185,9 @@ async function main() {
   ];
 
   for (const l of lessonsData) {
+    const status = l.displayOrder <= 3 && l.chapterId === chapter1Id
+      ? ContentStatus.PUBLISHED
+      : ContentStatus.DRAFT;
     await prisma.lesson.upsert({
       where: { id: l.id },
       update: {
@@ -180,7 +195,7 @@ async function main() {
         summary: l.summary,
         estimatedMinutes: l.estimatedMinutes,
         displayOrder: l.displayOrder,
-        status: ContentStatus.PUBLISHED,
+        status,
       },
       create: {
         id: l.id,
@@ -190,30 +205,16 @@ async function main() {
         summary: l.summary,
         estimatedMinutes: l.estimatedMinutes,
         displayOrder: l.displayOrder,
-        status: ContentStatus.PUBLISHED,
+        status,
       },
     });
   }
   console.log("Seeded 8 Lessons.");
 
-  // Clean existing blocks, vocabularies, exercises for idempotent re-runs
-  await prisma.lessonBlock.deleteMany();
-  await prisma.vocabulary.deleteMany();
-  await prisma.questionOption.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.exercise.deleteMany();
-
-  // Clean non-baseline lessons and progress created during tests/admin CMS runs
-  await prisma.lessonProgress.deleteMany({
-    where: { lessonId: { notIn: lessonsData.map((l) => l.id) } },
-  });
-  await prisma.lesson.deleteMany({
-    where: { id: { notIn: lessonsData.map((l) => l.id) } },
-  });
-
   // 4. Complete Content for Lesson 1 (10 Nguyên âm cơ bản)
   const lesson1Id = lessonsData[0].id;
   await prisma.lessonBlock.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "b0000000-0000-4000-a000-000000000001",
@@ -270,10 +271,9 @@ async function main() {
         type: BlockType.AUDIO,
         displayOrder: 4,
         content: {
-          title: "Luyện nghe phát âm 10 nguyên âm",
-          audioUrl: "/audio/lessons/lesson-1-vowels.mp3",
-          caption: "Nghe và nhắc lại theo giọng phát âm chuẩn Seoul.",
-          transcript: "ㅏ, ㅑ, ㅓ, ㅕ, ㅗ, ㅛ, ㅜ, ㅠ, ㅡ, ㅣ",
+          title: "Nghe phát âm nguyên âm tiếng Hàn",
+          audioUrl: "/audio/lessons/korean-vowels.ogg",
+          caption: "Nghe và nhắc lại các nguyên âm trong bản ghi.",
         },
       },
       {
@@ -294,6 +294,7 @@ async function main() {
   // 5. Complete Content for Lesson 2 (10 Phụ âm cơ bản & Ghép âm)
   const lesson2Id = lessonsData[1].id;
   await prisma.lessonBlock.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "b0000000-0000-4000-a000-000000000006",
@@ -362,6 +363,7 @@ async function main() {
   // 6. Complete Content for Lesson 3 (Batchim & Nối âm)
   const lesson3Id = lessonsData[2].id;
   await prisma.lessonBlock.createMany({
+    skipDuplicates: true,
     data: [
       {
         id: "b0000000-0000-4000-a000-000000000010",
@@ -472,6 +474,7 @@ async function main() {
   ];
 
   await prisma.vocabulary.createMany({
+    skipDuplicates: true,
     data: vocabularies.map((v, idx) => ({
       id: `v0000000-0000-4000-a000-${String(idx + 1).padStart(12, "0")}`,
       lessonId: v.lessonId,
@@ -479,14 +482,16 @@ async function main() {
       romanization: v.romanization,
       vietnameseMeaning: v.vietnameseMeaning,
       englishMeaning: v.englishMeaning,
-      audioUrl: `/audio/vocab/${v.romanization}.mp3`,
+      audioUrl: v.romanization === "mul"
+        ? `/audio/vocab/${v.romanization}.ogg`
+        : null,
       displayOrder: v.displayOrder,
     })),
   });
   console.log(`Seeded ${vocabularies.length} Vocabulary records.`);
 
   // 8. Seed Exercises & Questions across 4 QuestionTypes (at least 10 questions)
-  const exercise1 = await prisma.exercise.create({
+  const exercise1 = await seedExercise({
     data: {
       id: "e0000000-0000-4000-a000-000000000001",
       lessonId: lesson1Id,
@@ -497,7 +502,7 @@ async function main() {
     },
   });
 
-  const exercise2 = await prisma.exercise.create({
+  const exercise2 = await seedExercise({
     data: {
       id: "e0000000-0000-4000-a000-000000000002",
       lessonId: lesson2Id,
@@ -508,7 +513,7 @@ async function main() {
     },
   });
 
-  const exercise3 = await prisma.exercise.create({
+  const exercise3 = await seedExercise({
     data: {
       id: "e0000000-0000-4000-a000-000000000003",
       lessonId: lesson3Id,
@@ -520,7 +525,7 @@ async function main() {
   });
 
   // Question 1: MULTIPLE_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000001",
       exerciseId: exercise1.id,
@@ -540,7 +545,7 @@ async function main() {
   });
 
   // Question 2: MULTIPLE_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000002",
       exerciseId: exercise1.id,
@@ -560,7 +565,7 @@ async function main() {
   });
 
   // Question 3: FILL_BLANK
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000003",
       exerciseId: exercise1.id,
@@ -573,13 +578,13 @@ async function main() {
   });
 
   // Question 4: LISTENING_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000004",
       exerciseId: exercise1.id,
       type: QuestionType.LISTENING_CHOICE,
       prompt: "Nghe đoạn âm thanh và chọn nguyên âm bạn nghe được:",
-      audioUrl: "/audio/exercises/audio-vowel-a.mp3",
+      audioUrl: "/audio/exercises/vowel-a.ogg",
       explanation: "Âm thanh phát âm là 'a' tương ứng với chữ cái 'ㅏ'.",
       displayOrder: 4,
       options: {
@@ -594,7 +599,7 @@ async function main() {
   });
 
   // Question 5: MULTIPLE_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000005",
       exerciseId: exercise2.id,
@@ -614,7 +619,7 @@ async function main() {
   });
 
   // Question 6: FILL_BLANK
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000006",
       exerciseId: exercise2.id,
@@ -627,7 +632,7 @@ async function main() {
   });
 
   // Question 7: ARRANGE_SENTENCE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000007",
       exerciseId: exercise2.id,
@@ -647,7 +652,7 @@ async function main() {
   });
 
   // Question 8: MULTIPLE_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000008",
       exerciseId: exercise3.id,
@@ -667,7 +672,7 @@ async function main() {
   });
 
   // Question 9: FILL_BLANK
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000009",
       exerciseId: exercise3.id,
@@ -680,13 +685,13 @@ async function main() {
   });
 
   // Question 10: LISTENING_CHOICE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000010",
       exerciseId: exercise3.id,
       type: QuestionType.LISTENING_CHOICE,
       prompt: "Nghe từ vựng sau và chọn nghĩa tiếng Việt chính xác:",
-      audioUrl: "/audio/exercises/audio-mul.mp3",
+      audioUrl: "/audio/exercises/mul.ogg",
       explanation: "Từ phát âm là '물' (mul) có nghĩa là Nước.",
       displayOrder: 3,
       options: {
@@ -701,7 +706,7 @@ async function main() {
   });
 
   // Question 11: ARRANGE_SENTENCE
-  await prisma.question.create({
+  await seedQuestion({
     data: {
       id: "q0000000-0000-4000-a000-000000000011",
       exerciseId: exercise3.id,
@@ -721,6 +726,32 @@ async function main() {
   });
 
   console.log("Seeded 3 Exercises and 11 Questions across all 4 supported types.");
+  // Repair only untouched placeholder references in an existing database.
+  // User edited content and audio paths are never overwritten.
+  const audioBlock = await prisma.lessonBlock.findUnique({ where: { id: "b0000000-0000-4000-a000-000000000004" } });
+  if (audioBlock && typeof audioBlock.content === "object" && audioBlock.content !== null && !Array.isArray(audioBlock.content)) {
+    const content = audioBlock.content as Record<string, unknown>;
+    if (content.audioUrl === "/audio/lessons/lesson-1-vowels.mp3") {
+      const repairedContent: Record<string, unknown> = { ...content, title: "Nghe phát âm nguyên âm tiếng Hàn", caption: "Nghe và nhắc lại các nguyên âm trong bản ghi.", audioUrl: "/audio/lessons/korean-vowels.ogg" };
+      delete repairedContent.transcript;
+      await prisma.lessonBlock.update({ where: { id: audioBlock.id }, data: { content: repairedContent as Prisma.InputJsonObject } });
+    }
+  }
+  for (const [id, oldUrl, newUrl] of [
+    ["q0000000-0000-4000-a000-000000000004", "/audio/exercises/audio-vowel-a.mp3", "/audio/exercises/vowel-a.ogg"],
+    ["q0000000-0000-4000-a000-000000000010", "/audio/exercises/audio-mul.mp3", "/audio/exercises/mul.ogg"],
+  ]) {
+    await prisma.question.updateMany({ where: { id, audioUrl: oldUrl }, data: { audioUrl: newUrl } });
+  }
+  for (const vocabulary of vocabularies) {
+    const newUrl = vocabulary.romanization === "mul"
+      ? `/audio/vocab/${vocabulary.romanization}.ogg`
+      : null;
+    await prisma.vocabulary.updateMany({
+      where: { lessonId: vocabulary.lessonId, romanization: vocabulary.romanization, audioUrl: `/audio/vocab/${vocabulary.romanization}.mp3` },
+      data: { audioUrl: newUrl },
+    });
+  }
   console.log("Seeding completed successfully.");
 }
 

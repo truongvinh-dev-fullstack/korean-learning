@@ -1,10 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import { enrollInSeedCourse, passFirstSeedExercise } from "./helpers/learning";
+import { cleanupAccounts } from "./helpers/cleanup";
 
 test.describe("SRS Spaced Repetition Flashcard Review Flow", () => {
   const timestamp = Date.now();
   const testEmail = `srs_playwright_${timestamp}@example.com`;
   const testPassword = "Password123!";
   const testName = "Học Viên SRS";
+  test.afterEach(async () => { await cleanupAccounts([testEmail]); });
 
   test("completes end-to-end flashcard review journey with keyboard shortcuts and empty states", async ({
     page,
@@ -17,6 +20,7 @@ test.describe("SRS Spaced Repetition Flashcard Review Flow", () => {
     await page.fill("#confirmPassword", testPassword);
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+    await enrollInSeedCourse(page);
 
     // 2. Check /on-tap initial empty state when no cards have been enqueued yet
     await page.goto("/on-tap");
@@ -28,9 +32,8 @@ test.describe("SRS Spaced Repetition Flashcard Review Flow", () => {
     await page.goto(lessonUrl);
     await expect(page.locator("h1")).toContainText("Bài 1: 10 Nguyên âm cơ bản");
 
-    // Click "✓ Đánh dấu hoàn thành bài học"
-    const completeBtn = page.locator("button:has-text('Đánh dấu hoàn thành bài học')");
-    await completeBtn.click();
+    await passFirstSeedExercise(page);
+    await page.reload();
     await expect(page.getByText("Đã hoàn thành", { exact: true })).toBeVisible({ timeout: 10000 });
 
     // 4. Return to /dashboard and verify SRS due count is updated

@@ -27,7 +27,7 @@ graph TD
     end
     
     subgraph Data Layer
-        AuthMod --> DB[(SQLite Database via ORM)]
+        AuthMod --> DB[(PostgreSQL via Prisma)]
         CourseMod --> DB
         LessonMod --> DB
         ExerciseMod --> DB
@@ -69,7 +69,7 @@ src/
 
 | Module | Core Responsibilities | Public Service Interface |
 | :--- | :--- | :--- |
-| **`auth`** | Registration, credential verification, password hashing (Argon2id/bcrypt), session generation, role assertion (`STUDENT`, `ADMIN`). | `authService.register()`, `authService.login()`, `authService.verifySession()`, `authService.getUserById()` |
+| **`auth`** | Better Auth registration, salted scrypt credential hashing, sessions, and role assertion (`STUDENT`, `ADMIN`). | Better Auth server/client adapters and server session guards. |
 | **`courses`** | Course metadata, syllabus structure, module grouping, student enrollment state. | `courseService.listPublishedCourses()`, `courseService.getCourseBySlug()`, `courseService.enrollStudent()` |
 | **`lessons`** | Ordered lesson retrieval, lesson content blocks (Hangul, Vocab, Grammar, Dialogue, Audio URLs), sequential access enforcement. | `lessonService.getLessonDetails()`, `lessonService.getLessonsForModule()`, `lessonService.isLessonUnlocked()` |
 | **`exercises`** | Exercise generation (sanitized client payload without answers), server-side answer evaluation, score calculation. | `exerciseService.getLessonExercisesSanitized()`, `exerciseService.gradeSubmission()` |
@@ -167,13 +167,13 @@ flowchart TD
 ```
 
 ### Security Directives:
-1. **Password Hashing**: Passwords must be hashed using Argon2id or bcrypt (salt rounds $\ge 12$). Plaintext passwords must never be logged or persisted.
+1. **Password Hashing**: Better Auth uses salted scrypt for credential passwords. Plaintext passwords must never be logged or persisted.
 2. **Session Security**: Sessions are issued via an encrypted or signed token stored in an `HTTP-only`, `SameSite=Lax`, secure cookie to mitigate XSS and CSRF token theft.
 3. **Zero Client-Side Grading**:
    - The client application must **never** receive the answer key, regex patterns, or validation logic for exercises via the `GET /api/lessons/:id/exercises` endpoint.
    - Grading takes place strictly inside `exerciseService.gradeSubmission()` on the server.
 4. **URL & Input Sanitization**:
-   - Audio URLs must be validated against well-formed HTTPS URL formats.
+   - Audio URLs must be validated as configured HTTP(S) URLs or local paths before authoring.
    - All inbound JSON payloads must be validated using Zod schemas; malformed requests are rejected immediately with HTTP 400.
 5. **No File Upload Vulnerabilities**:
    - File uploads are explicitly excluded from the MVP. Content managers provide hosted audio URLs (e.g. Wikimedia Commons, approved CDNs) or pre-bundled local static assets.
@@ -182,8 +182,8 @@ flowchart TD
 
 ## 5. Technology Stack Architecture
 
-- **Runtime & Language**: Node.js (v18+) with TypeScript (strict mode enabled).
-- **Web Layer**: Next.js (App Router or Pages Router) providing server-side API handlers and a modern, accessible React-based user interface.
-- **Data Persistence**: Relational SQLite database operated locally via an ORM (Prisma or Drizzle ORM). SQLite provides ACID transactions with zero configuration and zero external service overhead for local development.
-- **Styling**: Vanilla CSS / modern CSS Modules with custom design tokens (color palettes, Hangul typography variables, cards, glassmorphism badges, and smooth transitions).
+- **Runtime & Language**: Node.js 20.19+ with TypeScript (strict mode enabled).
+- **Web Layer**: Next.js App Router providing server-side route handlers and React pages.
+- **Data Persistence**: PostgreSQL operated locally via Docker Compose or an existing server, accessed through Prisma. Database changes use Prisma migrations.
+- **Styling**: Tailwind CSS with shared color and typography conventions.
 - **Validation**: Zod for request body validation and runtime schema assertion.

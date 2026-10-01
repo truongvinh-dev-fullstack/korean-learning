@@ -183,7 +183,7 @@ export const QuestionOptionSchema = z.object({
 });
 export type QuestionOptionData = z.infer<typeof QuestionOptionSchema>;
 
-export const QuestionFormSchema = z.object({
+const QuestionFormFieldsSchema = z.object({
   exerciseId: z.string().min(1, "Bài tập không hợp lệ"),
   type: z.nativeEnum(QuestionType, {
     message: "Loại câu hỏi không hợp lệ",
@@ -197,20 +197,25 @@ export const QuestionFormSchema = z.object({
   explanation: z.string().trim().optional().nullable(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   options: z.array(QuestionOptionSchema).default([]),
-}).superRefine((data, ctx) => {
+});
+
+export const QuestionPatchSchema = QuestionFormFieldsSchema.omit({ options: true })
+  .partial()
+  .extend({ options: z.array(QuestionOptionSchema).optional() });
+
+export const QuestionFormSchema = QuestionFormFieldsSchema.superRefine((data, ctx) => {
   if (data.type === QuestionType.MULTIPLE_CHOICE || data.type === QuestionType.LISTENING_CHOICE) {
-    if (data.options.length < 2) {
+    if (data.options.length !== 4) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Câu hỏi trắc nghiệm phải có ít nhất 2 đáp án lựa chọn",
+        message: "Câu hỏi trắc nghiệm phải có đúng 4 đáp án lựa chọn",
         path: ["options"],
       });
     }
-    const hasCorrect = data.options.some((o) => o.isCorrect);
-    if (!hasCorrect) {
+    if (data.options.filter((option) => option.isCorrect).length !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Phải chọn ít nhất 1 đáp án chính xác",
+        message: "Câu hỏi trắc nghiệm phải có đúng 1 đáp án chính xác",
         path: ["options"],
       });
     }

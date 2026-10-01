@@ -22,12 +22,12 @@ You are developing the **Korean Language Learning Platform (MVP)**, a modular mo
 ### 2.2 Security & Grading Mandates
 - **Server-Side Grading Only**: Exercise answer keys and solution patterns must **never** be exposed in client-facing payloads. Quiz submissions must be graded exclusively on the server.
 - **Role Guards**: Verify user roles (`STUDENT` vs `ADMIN`) on all non-public endpoints. The `/admin` routes and `/api/admin/*` APIs must strictly reject non-admin users with HTTP 403.
-- **Password Security**: Passwords must be hashed using Argon2id or bcrypt (cost $\ge 12$). Never log, return, or store plaintext passwords.
+- **Password Security**: Better Auth's credential provider uses salted scrypt hashes. Keep its secure default; never log, return, or store plaintext passwords.
 - **No File Uploads**: Media is referenced exclusively via validated external HTTPS audio URLs or pre-bundled static assets.
 
 ### 2.3 Technology & Local Execution Rules
-- **Stack**: TypeScript (strict mode), Next.js / React, SQLite (`file:./dev.db`) via ORM, Vanilla CSS / CSS Modules with modern design tokens.
-- **Zero Cloud / Zero External Infra**: The application runs completely locally. Do **not** introduce Docker requirements, Redis, external message queues, or cloud storage for the MVP.
+- **Stack**: TypeScript (strict mode), Next.js / React, PostgreSQL via Prisma, and Tailwind CSS.
+- **Local infrastructure**: PostgreSQL is required, either through Docker Compose or an existing local server. No cloud subscription, Redis, external queue, or cloud storage is required for the MVP.
 - **Input Validation**: Use Zod schemas on all API request bodies.
 - **Standard API Envelope**:
   - Success: `{ success: true, data: T }`

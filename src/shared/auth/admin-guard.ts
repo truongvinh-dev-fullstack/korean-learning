@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/shared/auth/session";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 export async function requireAdminApi() {
   const session = await getServerSession();
@@ -55,15 +56,5 @@ export function handleAdminError(err: unknown) {
     );
   }
 
-  const message = err instanceof Error ? err.message : "Đã xảy ra lỗi máy chủ nội bộ.";
-  return NextResponse.json(
-    {
-      success: false,
-      error: {
-        code: "INTERNAL_ERROR",
-        message,
-      },
-    },
-    { status: 500 }
-  );
+  return unexpectedHttpError(err);
 }

@@ -2,12 +2,13 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/shared/db/prisma";
+import { validateServerEnv } from "@/shared/config/env";
+
+const environment = validateServerEnv(process.env);
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  secret:
-    process.env.BETTER_AUTH_SECRET ||
-    "korean-zero-dev-secret-key-min-32-chars-long-2026",
+  baseURL: environment.authUrl,
+  secret: environment.authSecret,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),

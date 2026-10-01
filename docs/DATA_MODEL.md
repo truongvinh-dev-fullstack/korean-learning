@@ -28,7 +28,6 @@ erDiagram
     User {
         string id PK
         string email UK
-        string passwordHash
         string name
         string role "STUDENT | ADMIN"
         datetime createdAt
@@ -96,7 +95,7 @@ erDiagram
     Exercise {
         string id PK
         string lessonId FK
-        string type "MULTIPLE_CHOICE | FILL_BLANK | MATCHING | SENTENCE_ORDER"
+        string type "MULTIPLE_CHOICE | FILL_BLANK | ARRANGE_SENTENCE | LISTENING_CHOICE"
         string prompt
         string audioUrl "Optional prompt audio"
         int orderIndex
@@ -172,10 +171,10 @@ erDiagram
 ### 2.1 Identity & Access Entities
 
 #### `User`
-Stores credential records and platform roles.
+Stores platform identity and roles. Better Auth stores credential hashes on the related `Account` record.
 - `id` (String, UUID or CUID, Primary Key)
 - `email` (String, Unique, Indexed, Lowercase trimmed)
-- `passwordHash` (String, Argon2id or bcrypt hash)
+- `Account.password` (String, Better Auth salted scrypt hash; never returned to clients)
 - `name` (String, Display name)
 - `role` (Enum: `STUDENT`, `ADMIN`, Default: `STUDENT`)
 - `createdAt` (DateTime, Default: now)
@@ -231,7 +230,7 @@ Modular structured content blocks belonging to a lesson.
   - For `HANGUL_GUIDE`: `{ characters: [{ char: "ㅏ", romanization: "a", strokeCount: 2, soundHint: "like 'a' in father" }] }`
   - For `GRAMMAR`: `{ title: "Topic Particle 은/는", formula: "Noun + 은/는", explanation: "...", examples: [{ kr: "저는 학생이에요", en: "As for me, I am a student" }] }`
   - For `DIALOGUE`: `{ lines: [{ speaker: "Minho", korean: "안녕하세요!", english: "Hello!", audioUrl: "https://..." }] }`
-- `audioUrl` (String, Nullable, direct HTTPS audio URL)
+- `audioUrl` (String, Nullable, validated local path or configured HTTP(S) URL)
 
 #### `VocabularyItem`
 Core vocabulary taught in the lesson, ready to enter the SRS queue.
@@ -241,7 +240,7 @@ Core vocabulary taught in the lesson, ready to enter the SRS queue.
 - `romanization` (String, e.g., "sagwa")
 - `englishMeaning` (String, e.g., "Apple")
 - `partOfSpeech` (String, e.g., "Noun")
-- `audioUrl` (String, Direct HTTPS link to native speaker audio)
+- `audioUrl` (String, Nullable, validated local path or configured HTTP(S) URL)
 - `exampleSentenceHangul` (Text, e.g., "사과가 맛있어요.")
 - `exampleSentenceEnglish` (Text, e.g., "The apple is delicious.")
 
@@ -251,7 +250,7 @@ Core vocabulary taught in the lesson, ready to enter the SRS queue.
 Quiz questions associated with a lesson.
 - `id` (String, Primary Key)
 - `lessonId` (String, Foreign Key $\to$ `Lesson.id`, Cascade Delete)
-- `type` (Enum: `MULTIPLE_CHOICE`, `FILL_BLANK`, `MATCHING`, `SENTENCE_ORDER`)
+- `type` (MVP enum: `MULTIPLE_CHOICE`, `FILL_BLANK`, `ARRANGE_SENTENCE`, `LISTENING_CHOICE`; `MATCHING` is post-MVP)
 - `prompt` (Text, e.g., "Select the correct translation for '안녕하세요'")
 - `audioUrl` (String, Nullable, Audio file URL for listening questions)
 - `orderIndex` (Integer)

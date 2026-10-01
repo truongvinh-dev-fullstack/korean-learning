@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getServerSession } from "@/shared/auth/session";
 import { exerciseService } from "@/modules/exercises/exercise.service";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 const AnswerItemSchema = z.object({
   questionId: z.string().min(1, "Thiếu questionId"),
@@ -12,7 +13,7 @@ const AnswerItemSchema = z.object({
 });
 
 const SubmitAttemptSchema = z.object({
-  answers: z.array(AnswerItemSchema).default([]),
+  answers: z.array(AnswerItemSchema).min(1),
   startedAt: z.string().datetime().optional(),
   idempotencyKey: z.string().optional(),
 });
@@ -47,7 +48,6 @@ export async function POST(
           error: {
             code: "INVALID_REQUEST",
             message: "Dữ liệu nộp bài không hợp lệ.",
-            details: parseResult.error.format(),
           },
         },
         { status: 400 }
@@ -85,16 +85,6 @@ export async function POST(
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi nộp bài tập.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

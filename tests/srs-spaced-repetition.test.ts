@@ -8,7 +8,9 @@ import {
 } from "@/modules/srs/srs-scheduler";
 import { srsService } from "@/modules/srs/srs.service";
 import { prisma } from "@/shared/db/prisma";
-import { ForbiddenError } from "@/shared/errors/domain-errors";
+import { ConflictError, ForbiddenError } from "@/shared/errors/domain-errors";
+import { randomUUID } from "node:crypto";
+import { progressService } from "@/modules/progress/progress.service";
 import {
   getVietnamDateString,
   getVietnamEndOfDayUtc,
@@ -213,6 +215,7 @@ describe("Timezone Boundary Handling (Asia/Ho_Chi_Minh UTC+7)", () => {
 describe("SRS Service & Database Integration (Security & Idempotency)", () => {
   let studentA: { id: string; email: string };
   let studentB: { id: string; email: string };
+  const createdUserIds: string[] = [];
   const seededLessonId = "l0000000-0000-4000-a000-000000000001"; // Lesson 1
 
   beforeEach(async () => {
@@ -234,21 +237,11 @@ describe("SRS Service & Database Integration (Security & Idempotency)", () => {
         role: "STUDENT",
       },
     });
+    createdUserIds.push(studentA.id, studentB.id);
   });
 
   afterAll(async () => {
-    await prisma.reviewLog.deleteMany({
-      where: { user: { email: { contains: "srs_student_" } } },
-    });
-    await prisma.reviewCard.deleteMany({
-      where: { user: { email: { contains: "srs_student_" } } },
-    });
-    await prisma.dailyStudyStat.deleteMany({
-      where: { user: { email: { contains: "srs_student_" } } },
-    });
-    await prisma.user.deleteMany({
-      where: { email: { contains: "srs_student_" } },
-    });
+    await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
   });
 
   it("enqueues lesson vocabulary idempotently without creating duplicates", async () => {
@@ -374,5 +367,52 @@ describe("SRS Service & Database Integration (Security & Idempotency)", () => {
         rating: ReviewRating.GOOD,
       })
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it("rejects another user's replay key and a key reused for a different card", async () => {
+    await srsService.enqueueLessonVocabulary(studentA.id, seededLessonId);
+    await srsService.enqueueLessonVocabulary(studentB.id, seededLessonId);
+    const cards = await srsService.getDueCardsForStudent(studentA.id);
+    const otherCard = (await srsService.getDueCardsForStudent(studentB.id))[0];
+    const key = randomUUID();
+    await srsService.submitCardReview({ userId: studentA.id, cardId: cards[0].id, rating: ReviewRating.GOOD, idempotencyKey: key });
+    await expect(srsService.submitCardReview({ userId: studentB.id, cardId: otherCard.id, rating: ReviewRating.GOOD, idempotencyKey: key })).rejects.toThrow(ForbiddenError);
+    await expect(srsService.submitCardReview({ userId: studentB.id, cardId: cards[0].id, rating: ReviewRating.GOOD, idempotencyKey: key })).rejects.toThrow(ForbiddenError);
+    await expect(srsService.submitCardReview({ userId: studentA.id, cardId: cards[1].id, rating: ReviewRating.GOOD, idempotencyKey: key })).rejects.toThrow(ForbiddenError);
+    expect(await prisma.reviewLog.count({ where: { idempotencyKey: key } })).toBe(1);
+  });
+
+  it("hides future cards from queue and count and rejects early review", async () => {
+    await srsService.enqueueLessonVocabulary(studentA.id, seededLessonId);
+    const card = (await srsService.getDueCardsForStudent(studentA.id))[0];
+    const now = new Date();
+    await prisma.reviewCard.update({ where: { id: card.id }, data: { dueAt: new Date(now.getTime() + 60_000) } });
+    expect((await srsService.getDueCardsForStudent(studentA.id, now)).some((item) => item.id === card.id)).toBe(false);
+    expect(await srsService.getDueCardCountForStudent(studentA.id, now)).toBe((await srsService.getDueCardsForStudent(studentA.id, now)).length);
+    await expect(srsService.submitCardReview({ userId: studentA.id, cardId: card.id, rating: ReviewRating.GOOD, now })).rejects.toThrow(ConflictError);
+    expect(await prisma.reviewLog.count({ where: { cardId: card.id } })).toBe(0);
+  });
+
+  it("records only one rating when two requests review the same due card", async () => {
+    await srsService.enqueueLessonVocabulary(studentA.id, seededLessonId);
+    const card = (await srsService.getDueCardsForStudent(studentA.id))[0];
+    const now = new Date();
+    const results = await Promise.allSettled([ReviewRating.GOOD, ReviewRating.EASY].map((rating) =>
+      srsService.submitCardReview({ userId: studentA.id, cardId: card.id, rating, now })
+    ));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(await prisma.reviewLog.count({ where: { cardId: card.id } })).toBe(1);
+    const stat = await prisma.dailyStudyStat.findUniqueOrThrow({ where: { userId_date: { userId: studentA.id, date: getVietnamDateString(now) } } });
+    expect(stat.reviewsCompleted).toBe(1);
+  });
+
+  it("counts a review-only day toward the study streak", async () => {
+    await srsService.enqueueLessonVocabulary(studentA.id, seededLessonId);
+    const card = (await srsService.getDueCardsForStudent(studentA.id))[0];
+    await srsService.submitCardReview({ userId: studentA.id, cardId: card.id, rating: ReviewRating.GOOD });
+    const streak = await progressService.getUserStreak(studentA.id);
+    expect(streak.currentStreak).toBe(1);
+    expect(streak.studiedToday).toBe(true);
   });
 });

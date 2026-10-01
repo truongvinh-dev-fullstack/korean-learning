@@ -5,6 +5,7 @@ import {
   validateLessonBlockRecord,
 } from "@/modules/lessons/lesson-block.schema";
 import { lessonService } from "@/modules/lessons/lesson.service";
+import { prisma } from "@/shared/db/prisma";
 
 describe("LessonBlock Validation & Schemas", () => {
   it("validates a TEXT block successfully", () => {
@@ -131,7 +132,10 @@ describe("LessonBlock Validation & Schemas", () => {
   });
 
   it("fetches and strictly validates real seeded lesson from database", async () => {
-    const lesson = await lessonService.getPublishedLessonBySlug("bai-1-nguyen-am-co-ban");
+    const user = await prisma.user.create({ data: { id: crypto.randomUUID(), email: `lesson-block-${crypto.randomUUID()}@example.com`, name: "Block tester" } });
+    const course = await prisma.course.findUniqueOrThrow({ where: { slug: "tieng-han-tu-con-so-0" } });
+    await prisma.enrollment.create({ data: { userId: user.id, courseId: course.id } });
+    const lesson = await lessonService.getPublishedLessonBySlug("bai-1-nguyen-am-co-ban", user.id);
     expect(lesson).not.toBeNull();
     expect(lesson?.slug).toBe("bai-1-nguyen-am-co-ban");
     expect(lesson?.blocks.length).toBeGreaterThanOrEqual(4);

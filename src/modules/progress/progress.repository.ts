@@ -1,5 +1,5 @@
 import { prisma } from "@/shared/db/prisma";
-import { LessonProgressStatus, ContentStatus } from "@prisma/client";
+import { LessonProgressStatus, ContentStatus, Prisma } from "@prisma/client";
 
 export class ProgressRepository {
   /**
@@ -16,35 +16,36 @@ export class ProgressRepository {
     });
   }
 
+  async findPublishedExerciseIds(lessonId: string) {
+    const exercises = await prisma.exercise.findMany({
+      where: { lessonId, status: ContentStatus.PUBLISHED },
+      select: { id: true },
+    });
+    return exercises.map((exercise) => exercise.id);
+  }
+
+  async findBestPassingAttempt(userId: string, exerciseIds: string[]) {
+    return prisma.exerciseAttempt.findFirst({
+      where: { userId, exerciseId: { in: exerciseIds }, isPassing: true, submittedAt: { not: null } },
+      orderBy: { percentage: "desc" },
+      select: { percentage: true },
+    });
+  }
+
   /**
    * Starts a lesson progress record idempotently.
    * If already IN_PROGRESS or COMPLETED, leaves the status unchanged.
    */
   async startLessonProgress(userId: string, lessonId: string, startedAt: Date) {
-    const existing = await this.findLessonProgress(userId, lessonId);
-
-    if (!existing) {
-      return prisma.lessonProgress.create({
-        data: {
-          userId,
-          lessonId,
-          status: LessonProgressStatus.IN_PROGRESS,
-          startedAt,
-        },
-      });
-    }
-
-    if (existing.status === LessonProgressStatus.NOT_STARTED) {
-      return prisma.lessonProgress.update({
-        where: { id: existing.id },
-        data: {
-          status: LessonProgressStatus.IN_PROGRESS,
-          startedAt: existing.startedAt || startedAt,
-        },
-      });
-    }
-
-    return existing;
+    await prisma.lessonProgress.createMany({
+      data: [{ userId, lessonId, status: LessonProgressStatus.IN_PROGRESS, startedAt }],
+      skipDuplicates: true,
+    });
+    await prisma.lessonProgress.updateMany({
+      where: { userId, lessonId, status: LessonProgressStatus.NOT_STARTED },
+      data: { status: LessonProgressStatus.IN_PROGRESS, startedAt },
+    });
+    return prisma.lessonProgress.findUniqueOrThrow({ where: { userId_lessonId: { userId, lessonId } } });
   }
 
   /**
@@ -57,6 +58,7 @@ export class ProgressRepository {
     score,
     now,
     vietnamDate,
+    enqueueVocabulary,
   }: {
     userId: string;
     lessonId: string;
@@ -64,85 +66,63 @@ export class ProgressRepository {
     score: number;
     now: Date;
     vietnamDate: string;
+    enqueueVocabulary: (tx: Prisma.TransactionClient) => Promise<number>;
   }) {
     return prisma.$transaction(async (tx) => {
-      // 1. Upsert LessonProgress
-      const progress = await tx.lessonProgress.upsert({
-        where: {
-          userId_lessonId: {
-            userId,
-            lessonId,
-          },
-        },
-        create: {
-          userId,
-          lessonId,
-          status: LessonProgressStatus.COMPLETED,
-          score,
-          startedAt: now,
-          completedAt: now,
-        },
-        update: {
-          status: LessonProgressStatus.COMPLETED,
-          score,
-          completedAt: now,
-        },
+      // A conditional transition ensures concurrent completions increment stats once.
+      const transitioned = await tx.lessonProgress.updateMany({
+        where: { userId, lessonId, status: { not: LessonProgressStatus.COMPLETED } },
+        data: { status: LessonProgressStatus.COMPLETED, score, completedAt: now },
       });
-
-      // 2. Upsert DailyStudyStat for Vietnam calendar date
-      await tx.dailyStudyStat.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: vietnamDate,
-          },
-        },
-        create: {
-          userId,
-          date: vietnamDate,
-          lessonsCompleted: 1,
-        },
-        update: {
-          lessonsCompleted: { increment: 1 },
-        },
+      let newlyCompleted = transitioned.count === 1;
+      if (!newlyCompleted) {
+        const inserted = await tx.lessonProgress.createMany({
+          data: [{ userId, lessonId, status: LessonProgressStatus.COMPLETED, score, startedAt: now, completedAt: now }],
+          skipDuplicates: true,
+        });
+        newlyCompleted = inserted.count === 1;
+      }
+      await tx.lessonProgress.updateMany({
+        where: { userId, lessonId, status: LessonProgressStatus.COMPLETED, score: { lt: score } },
+        data: { score },
       });
+      const progress = await tx.lessonProgress.findUniqueOrThrow({ where: { userId_lessonId: { userId, lessonId } } });
 
-      // 3. Check if all course lessons are completed
-      const totalPublishedLessons = await tx.lesson.count({
-        where: {
-          status: ContentStatus.PUBLISHED,
-          chapter: {
-            courseId,
-            status: ContentStatus.PUBLISHED,
-          },
-        },
-      });
+      // Card insertion shares the progress transaction, including idempotent retries.
+      await enqueueVocabulary(tx);
 
-      const completedLessons = await tx.lessonProgress.count({
-        where: {
-          userId,
-          status: LessonProgressStatus.COMPLETED,
-          lesson: {
-            status: ContentStatus.PUBLISHED,
-            chapter: {
-              courseId,
-              status: ContentStatus.PUBLISHED,
-            },
-          },
-        },
-      });
+      if (newlyCompleted) {
+        // Daily totals and course completion change only on the first transition.
+        await tx.dailyStudyStat.upsert({
+          where: { userId_date: { userId, date: vietnamDate } },
+          create: { userId, date: vietnamDate, lessonsCompleted: 1 },
+          update: { lessonsCompleted: { increment: 1 } },
+        });
 
-      if (totalPublishedLessons > 0 && completedLessons >= totalPublishedLessons) {
-        await tx.enrollment.updateMany({
+        const totalPublishedLessons = await tx.lesson.count({
           where: {
-            userId,
-            courseId,
-            completedAt: null,
-          },
-          data: {
-            completedAt: now,
+            status: ContentStatus.PUBLISHED,
+            chapter: { courseId, status: ContentStatus.PUBLISHED },
           },
         });
+
+        const completedLessons = await tx.lessonProgress.count({
+          where: {
+            userId,
+            status: LessonProgressStatus.COMPLETED,
+            lesson: {
+              status: ContentStatus.PUBLISHED,
+              chapter: { courseId, status: ContentStatus.PUBLISHED },
+            },
+          },
+        });
+
+        if (totalPublishedLessons > 0 && completedLessons >= totalPublishedLessons) {
+          await tx.enrollment.updateMany({
+            where: { userId, courseId, completedAt: null },
+            data: { completedAt: now },
+          });
+        }
       }
 
       return progress;
@@ -191,7 +171,7 @@ export class ProgressRepository {
     return prisma.dailyStudyStat.findMany({
       where: {
         userId,
-        lessonsCompleted: { gt: 0 },
+        OR: [{ lessonsCompleted: { gt: 0 } }, { reviewsCompleted: { gt: 0 } }],
       },
       orderBy: {
         date: "desc",

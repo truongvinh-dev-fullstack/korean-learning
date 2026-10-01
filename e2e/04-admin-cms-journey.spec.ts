@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { prisma } from "../src/shared/db/prisma";
+import { cleanupAccounts } from "./helpers/cleanup";
 
 test.describe("4. Admin Access Control & Content Authoring Journey", () => {
   const ts = Date.now();
@@ -10,6 +11,11 @@ test.describe("4. Admin Access Control & Content Authoring Journey", () => {
   const adminEmail = `admin_cms_${ts}@example.com`;
   const adminPassword = "Password123!";
   const adminName = `Quản Trị Viên ${ts}`;
+  test.afterEach(async () => {
+    const lesson = await prisma.lesson.findUnique({ where: { slug: `bai-e2e-admin-${ts}` } });
+    if (lesson) await prisma.lesson.delete({ where: { id: lesson.id } });
+    await cleanupAccounts([studentEmail, adminEmail]);
+  });
 
   test("strictly blocks STUDENT from admin routes and APIs, allows promoted ADMIN to create, preview and publish a lesson", async ({
     page,
@@ -28,9 +34,10 @@ test.describe("4. Admin Access Control & Content Authoring Journey", () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 
     // 2. Direct browser navigation to /admin must show 403 Forbidden screen
-    await page.goto("/admin");
+    const deniedPage = await page.goto("/admin");
+    expect(deniedPage?.status()).toBe(403);
     await expect(page.locator("h1")).toContainText(/403.*Quyền truy cập bị từ chối/i);
-    await expect(page.getByText(/không có quyền Quản trị viên/i)).toBeVisible();
+    await expect(page.getByText(/không có quyền quản trị/i)).toBeVisible();
 
     // 3. API mutation by student session must return HTTP 403
     const apiDenyRes = await page.request.post("/api/admin/courses", {
@@ -64,7 +71,7 @@ test.describe("4. Admin Access Control & Content Authoring Journey", () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 
     // Promote user in database directly to ADMIN
-    await prisma.user.update({
+    const promoted = await prisma.user.update({
       where: { email: adminEmail },
       data: { role: "ADMIN" },
     });
@@ -72,6 +79,22 @@ test.describe("4. Admin Access Control & Content Authoring Journey", () => {
     // 6. Navigate to /admin - now permitted!
     await page.goto("/admin");
     await expect(page.locator("h1")).toContainText(/Tổng quan Quản trị|Quản trị/i);
+
+    const submitted = await prisma.exerciseAttempt.create({ data: {
+      userId: promoted.id,
+      exerciseId: "e0000000-0000-4000-a000-000000000001",
+      submittedAt: new Date(), score: 1, maxScore: 1, percentage: 100, isPassing: true,
+    } });
+    try {
+      const questionUrl = "/api/admin/questions/q0000000-0000-4000-a000-000000000001";
+      const update = await page.request.put(questionUrl, { data: { prompt: "Should remain unchanged" } });
+      const remove = await page.request.delete(questionUrl);
+      expect(update.status()).toBe(409);
+      expect(remove.status()).toBe(409);
+      expect((await update.json()).error.message).toMatch(/đã có lượt nộp/);
+    } finally {
+      await prisma.exerciseAttempt.delete({ where: { id: submitted.id } });
+    }
 
     // 7. Navigate to chapter lessons table for Chapter 1
     const chapter1Id = "c1000000-0000-4000-a000-000000000001";
@@ -115,14 +138,13 @@ test.describe("4. Admin Access Control & Content Authoring Journey", () => {
       data: { status: "PUBLISHED" },
     });
 
-    // 12. Verify public student accessibility of published lesson
+    // 12. Publishing exposes the syllabus entry, while the reader still requires enrollment.
     await page.goto(`/courses/tieng-han-tu-con-so-0/lessons/${lessonSlug}`);
     await expect(page.locator("h1")).toContainText(lessonTitle);
-    await expect(page.getByText("Nội dung soạn thảo tự động trong kiểm thử E2E")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Đăng ký khóa học ngay/i })).toBeVisible();
+    await expect(page.getByText("Nội dung soạn thảo tự động trong kiểm thử E2E")).toHaveCount(0);
 
     // 13. Clean up test lesson so database remains deterministic for all test suites
-    await prisma.lesson.deleteMany({
-      where: { slug: lessonSlug },
-    });
+    await prisma.lesson.delete({ where: { id: lessonRecord!.id } });
   });
 });

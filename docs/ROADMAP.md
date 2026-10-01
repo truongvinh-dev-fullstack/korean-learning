@@ -26,22 +26,22 @@ flowchart LR
   - `docs/PRODUCT.md`: User journey, functional requirements, scope exclusions.
   - `docs/ARCHITECTURE.md`: Modular monolith boundaries, route map, security rules, RBAC.
   - `docs/DATA_MODEL.md`: Entity schema, ERD, SM-2 formula, streak calendar rules.
-  - `docs/LOCAL_DEVELOPMENT.md`: Zero-infra local setup, seed data specifications.
+  - `docs/LOCAL_DEVELOPMENT.md`: PostgreSQL local setup and seed data specifications.
   - `docs/ROADMAP.md`: Phase sequence, milestones, and acceptance criteria.
   - `GEMINI.md`: Repository guardrails and instructions for future coding agents.
-  - `.gitignore`: Configured for Node, Next.js, SQLite, and secrets.
+  - `.gitignore`: Configured for Node, Next.js, PostgreSQL environment files, and secrets.
 - **Definition of Done**: All documents created, cross-referenced, reviewed for zero contradictions, and accepted. Application code is strictly **not** scaffolded in this phase.
 
 ---
 
 ### Phase 1: Project Scaffolding & Core Infrastructure
-- **Goal**: Establish the running TypeScript application, ORM integration with SQLite, base CSS design tokens, and shared utility layers.
+- **Goal**: Establish the running TypeScript application, Prisma integration with PostgreSQL, base CSS design tokens, and shared utility layers.
 - **Milestones**:
   - Initialize TypeScript Next.js / Node web application.
-  - Configure ORM (Prisma or Drizzle) targeting local SQLite (`file:./dev.db`).
+  - Configure Prisma targeting local PostgreSQL.
   - Implement base relational schema from `docs/DATA_MODEL.md` and verify database migrations.
   - Build shared design system with custom CSS: Hangul typography styles, modern color palette, card components, buttons, and navigation bar.
-- **Definition of Done**: `npm run dev` boots the server; `npm run db:push` creates the SQLite schema; base layout renders cleanly without errors.
+- **Definition of Done**: `pnpm dev` boots the server; `pnpm db:migrate` applies the PostgreSQL schema; base layout renders cleanly without errors.
 
 ---
 
@@ -49,7 +49,7 @@ flowchart LR
 - **Goal**: Implement secure local credential authentication and Role-Based Access Control (`STUDENT`, `ADMIN`).
 - **Milestones**:
   - User registration endpoint and UI (`/register`) with input validation via Zod.
-  - User login endpoint and UI (`/login`) with Argon2id / bcrypt password verification.
+  - User login endpoint and UI (`/dang-nhap`) with Better Auth salted scrypt password verification.
   - Session issuance via HTTP-only secure cookie or JWT.
   - Auth context and route protection middleware (`VISITOR` vs `STUDENT` vs `ADMIN`).
 - **Definition of Done**: Visitor can register a student account, log in, view their session on `/dashboard`, log out, and unauthorized users are redirected away from protected routes.
@@ -154,4 +154,4 @@ The following features are reserved for future phases after the MVP is validated
 5. **Speech Recognition & Pronunciation Scoring**: Web Audio API recording with speech-to-text pronunciation assessment.
 6. **Community Forums & Comments**: Discussion boards under lessons for peer Q&A.
 7. **Native Mobile App**: iOS and Android clients built with React Native / Flutter sharing backend APIs.
-8. **Cloud Deployment & Scalability**: Docker containerization, PostgreSQL migration, Redis caching, CI/CD pipelines.
+8. **Cloud Deployment & Scalability**: Production containerization, managed PostgreSQL, Redis caching, CI/CD pipelines.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/shared/auth/session";
 import { courseService } from "@/modules/courses/course.service";
 import { DomainError } from "@/shared/errors/domain-errors";
+import { unexpectedHttpError } from "@/shared/errors/http-error";
 
 export async function POST(
   req: NextRequest,
@@ -46,16 +47,6 @@ export async function POST(
       );
     }
 
-    const message = err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message,
-        },
-      },
-      { status: 500 }
-    );
+    return unexpectedHttpError(err);
   }
 }

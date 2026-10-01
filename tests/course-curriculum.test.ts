@@ -2,6 +2,7 @@ import "dotenv/config";
 import { describe, it, expect } from "vitest";
 import { courseService } from "@/modules/courses/course.service";
 import { lessonService } from "@/modules/lessons/lesson.service";
+import { prisma } from "@/shared/db/prisma";
 
 describe("Course & Curriculum Service", () => {
   it("retrieves published course catalog with correct counts", async () => {
@@ -13,7 +14,8 @@ describe("Course & Curriculum Service", () => {
     expect(flagshipCourse).toBeDefined();
     expect(flagshipCourse?.title).toBe("Tiếng Hàn từ con số 0");
     expect(flagshipCourse?.chapterCount).toBe(3);
-    expect(flagshipCourse?.lessonCount).toBe(8);
+    expect(flagshipCourse?.lessonCount).toBe(3);
+    expect(flagshipCourse?.estimatedMinutes).toBe(55);
   });
 
   it("retrieves course by slug with ordered chapters and lessons", async () => {
@@ -37,7 +39,10 @@ describe("Course & Curriculum Service", () => {
   });
 
   it("retrieves published lesson by slug with validated blocks and vocabulary", async () => {
-    const lesson = await lessonService.getPublishedLessonBySlug("bai-1-nguyen-am-co-ban");
+    const user = await prisma.user.create({ data: { id: crypto.randomUUID(), email: `curriculum-${crypto.randomUUID()}@example.com`, name: "Curriculum tester" } });
+    const course = await prisma.course.findUniqueOrThrow({ where: { slug: "tieng-han-tu-con-so-0" } });
+    await prisma.enrollment.create({ data: { userId: user.id, courseId: course.id } });
+    const lesson = await lessonService.getPublishedLessonBySlug("bai-1-nguyen-am-co-ban", user.id);
 
     expect(lesson).not.toBeNull();
     expect(lesson?.slug).toBe("bai-1-nguyen-am-co-ban");
@@ -56,7 +61,7 @@ describe("Course & Curriculum Service", () => {
     const nonExistentCourse = await courseService.getCourseBySlug("slug-khong-ton-tai");
     expect(nonExistentCourse).toBeNull();
 
-    const nonExistentLesson = await lessonService.getPublishedLessonBySlug("bai-khong-ton-tai");
+    const nonExistentLesson = await lessonService.getPublishedLessonBySlug("bai-khong-ton-tai", null);
     expect(nonExistentLesson).toBeNull();
   });
 });

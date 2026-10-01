@@ -11,7 +11,7 @@ describe("Health Check & Database Connectivity", () => {
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].result).toBe(1);
-    expect(result[0].current_db).toBe("korean_zero");
+    expect(result[0].current_db).toBe(new URL(process.env.DATABASE_URL!).pathname.slice(1));
   });
 
   it("verifies application environment variables are defined", () => {

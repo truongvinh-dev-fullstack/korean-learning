@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { lessonService } from "@/modules/lessons/lesson.service";
+import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
 
 interface LessonRedirectPageProps {
   params: Promise<{ slug: string }>;
@@ -7,11 +7,11 @@ interface LessonRedirectPageProps {
 
 export default async function LessonRedirectPage({ params }: LessonRedirectPageProps) {
   const { slug } = await params;
-  const lesson = await lessonService.getPublishedLessonBySlug(slug);
+  const decision = await lessonAccessService.resolveBySlug(null, slug);
 
-  if (!lesson) {
+  if (decision.kind === "NOT_FOUND") {
     notFound();
   }
 
-  redirect(`/courses/${lesson.chapter.course.slug}/lessons/${lesson.slug}`);
+  redirect(`/courses/${decision.lesson.chapter.course.slug}/lessons/${decision.lesson.slug}`);
 }
