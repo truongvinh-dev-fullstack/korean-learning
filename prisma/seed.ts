@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { prisma } from "../src/shared/db/prisma";
 import { ContentStatus, BlockType, QuestionType, Prisma } from "@prisma/client";
+import { getVocabularyAudioUrl } from "../src/shared/audio/vocabulary-audio";
 
 async function seedExercise(args: Parameters<typeof prisma.exercise.create>[0]) {
   const id = args.data.id;
@@ -482,9 +483,7 @@ async function main() {
       romanization: v.romanization,
       vietnameseMeaning: v.vietnameseMeaning,
       englishMeaning: v.englishMeaning,
-      audioUrl: v.romanization === "mul"
-        ? `/audio/vocab/${v.romanization}.ogg`
-        : null,
+      audioUrl: getVocabularyAudioUrl(v.hangul),
       displayOrder: v.displayOrder,
     })),
   });
@@ -744,9 +743,7 @@ async function main() {
     await prisma.question.updateMany({ where: { id, audioUrl: oldUrl }, data: { audioUrl: newUrl } });
   }
   for (const vocabulary of vocabularies) {
-    const newUrl = vocabulary.romanization === "mul"
-      ? `/audio/vocab/${vocabulary.romanization}.ogg`
-      : null;
+    const newUrl = getVocabularyAudioUrl(vocabulary.hangul);
     await prisma.vocabulary.updateMany({
       where: { lessonId: vocabulary.lessonId, romanization: vocabulary.romanization, audioUrl: `/audio/vocab/${vocabulary.romanization}.mp3` },
       data: { audioUrl: newUrl },

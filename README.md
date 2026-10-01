@@ -26,6 +26,6 @@ The app fails at startup with a list of missing or invalid required environment 
 
 Run `pnpm lint`, `pnpm typecheck`, `pnpm test:run`, `pnpm build`, and `pnpm exec playwright test`. Database tests use a separate database ending in `_test`, or `TEST_DATABASE_URL` when supplied; they do not reset the development database. Install Chromium first with `pnpm exec playwright install chromium` if needed.
 
-More detail: [local development guide](docs/LOCAL_DEVELOPMENT.md), [product scope](docs/PRODUCT.md), and [audio provenance](docs/AUDIO_PROVENANCE.md).
+More detail: [local development guide](docs/LOCAL_DEVELOPMENT.md), [product scope](docs/PRODUCT.md), [vocabulary pronunciation buttons](docs/VOCABULARY_AUDIO.md), and [audio provenance](docs/AUDIO_PROVENANCE.md).
 
 Visitors browse published syllabi; lesson content requires login, enrollment, and completion of the preceding lesson. Passing a published quiz at 80% or higher completes its lesson. An exercise-free lesson must be started before completion. Dashboard words learned counts actual distinct vocabulary cards, with zero added by vocabulary-free lessons. Audio assets include `/audio/lessons/korean-vowels.ogg` and `/audio/vocab/mul.ogg`; dialogue blocks support both overall and per-line audio.
