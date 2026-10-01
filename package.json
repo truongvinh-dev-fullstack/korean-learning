@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "build:vercel": "node scripts/vercel-build.mjs",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -14,13 +16,18 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:deploy:production": "node --env-file=.env.production.local node_modules/prisma/build/index.js migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:production": "node --env-file=.env.production.local --import tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "admin:promote": "tsx scripts/promote-admin.ts"
+    "admin:promote": "tsx scripts/promote-admin.ts",
+    "admin:promote:production": "node --env-file=.env.production.local --import tsx scripts/promote-admin.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@vercel/functions": "^3.9.9",
     "better-auth": "^1.7.6",
     "dotenv": "^16.4.7",
     "next": "16.3.6",
@@ -46,5 +53,8 @@
     "typescript": "^5",
     "vitest": "^3.0.7"
   },
-  "packageManager": "pnpm@12.8.1"
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": "22.x"
+  }
 }

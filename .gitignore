@@ -20,9 +20,12 @@ prisma/*.db
 prisma/*.db-journal
 
 # Environment variables
-.env
-.env*.local
+.env*
 !.env.example
+!.env.production.example
+
+# Vercel local project linkage
+.vercel/
 
 # Logs
 logs/
@@ -57,3 +60,4 @@ Thumbs.db
 .eslintcache
 .temp/
 tmp/
+.vercel

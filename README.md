@@ -1,10 +1,12 @@
 # Korean Zero
 
-Local-first Korean learning MVP built with Next.js, Better Auth, Prisma, and PostgreSQL.
+Korean learning MVP built with Next.js, Better Auth, Prisma, and PostgreSQL. Deploy with free HTTPS using [Vercel + Supabase](docs/DEPLOYMENT.md).
+
+Live site: [korean-zero.vercel.app](https://korean-zero.vercel.app).
 
 ## Requirements
 
-- Node.js 20.19+ and pnpm (the version in `package.json` is recommended).
+- Node.js 22 LTS and pnpm (the version in `package.json` is recommended).
 - PostgreSQL 17, either through Docker Compose or a local PostgreSQL service. Docker is optional; PostgreSQL is required.
 
 ## Local setup

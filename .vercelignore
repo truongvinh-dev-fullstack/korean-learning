@@ -1,0 +1,15 @@
+# Supply production secrets through Vercel Environment Variables only.
+.env*
+.git/
+.vercel/
+node_modules/
+.next/
+out/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.temp/
+tmp/
+*.log
+tsconfig.tsbuildinfo
