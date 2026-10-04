@@ -6,6 +6,8 @@ import { validateLessonBlockRecord } from "@/modules/lessons/lesson-block.schema
 import { LessonBlockRenderer } from "@/components/lessons/lesson-block-renderer";
 import { VocabularyAudioButton } from "@/components/lessons/vocabulary-audio-button";
 import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
+import { LearningObjectives } from "@/components/lessons/learning-objectives";
+import { NotFoundError } from "@/shared/errors/domain-errors";
 
 export default async function AdminLessonPreviewPage({
   params,
@@ -21,8 +23,9 @@ export default async function AdminLessonPreviewPage({
   let lesson;
   try {
     lesson = await adminService.getLessonPreview(session.user, id);
-  } catch {
-    notFound();
+  } catch (error) {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
   }
 
   // Validate blocks safely for rendering
@@ -95,6 +98,8 @@ export default async function AdminLessonPreviewPage({
           )}
         </header>
 
+        <LearningObjectives objectives={lesson.learningObjectives} />
+        {validatedBlocks.length !== lesson.blocks.length && <p role="alert" className="text-sm text-rose-300">Có khối không hợp lệ chưa hiển thị được. Kiểm tra nội dung trước khi xuất bản.</p>}
         {/* Lesson Blocks Content Stream */}
         <div className="space-y-6">
           {validatedBlocks.map((block) => (

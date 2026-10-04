@@ -14,6 +14,7 @@ import {
 import { progressService, ProgressService } from "@/modules/progress/progress.service";
 import { lessonAccessService } from "@/modules/lessons/lesson-access.service";
 import { serializeExerciseResult, type ExerciseResultDto } from "./result";
+import { parseQuestionContent } from "./question.schema";
 
 export interface SanitizedQuestionOption {
   id: string;
@@ -30,6 +31,14 @@ export interface SanitizedQuestion {
   audioUrl: string | null;
   displayOrder: number;
   options: SanitizedQuestionOption[];
+  content?: StudentQuestionContent;
+}
+
+export interface StudentQuestionContent {
+  source?: string;
+  items?: { id: string; text: string }[];
+  leftItems?: { id: string; text: string }[];
+  rightItems?: { id: string; text: string }[];
 }
 
 export interface SanitizedExercise {
@@ -60,6 +69,27 @@ export interface RawQuestionWithGrading {
   explanation?: string | null;
   displayOrder: number;
   options: RawOptionWithGrading[];
+  content?: unknown;
+  updatedAt?: Date;
+}
+
+function shuffleItems<T>(values: readonly T[]): T[] {
+  const shuffled = [...values];
+  for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+  return shuffled;
+}
+
+function studentContent(question: RawQuestionWithGrading): StudentQuestionContent | undefined {
+  switch (question.type) {
+    case "TRANSLATION": return { source: parseQuestionContent(question.type, question.content).source };
+    case "ORDERING": return { items: shuffleItems(parseQuestionContent(question.type, question.content).items) };
+    case "MATCHING": {
+      const content = parseQuestionContent(question.type, question.content);
+      return { leftItems: content.pairs.map((pair) => ({ id: pair.leftId, text: pair.left })),
+        rightItems: shuffleItems(content.pairs.map((pair) => ({ id: pair.rightId, text: pair.right }))) };
+    }
+    default: return undefined;
+  }
 }
 
 export interface RawExerciseWithGrading {
@@ -85,6 +115,7 @@ export function sanitizeExerciseForStudent(
     description: exercise.description,
     displayOrder: exercise.displayOrder,
     questions: exercise.questions.map((question) => {
+      const content = studentContent(question);
       // Intentionally omit correctAnswer and explanation
       const sanitizedQuestion: SanitizedQuestion = {
         id: question.id,
@@ -103,6 +134,7 @@ export function sanitizeExerciseForStudent(
           };
           return sanitizedOption;
         }),
+        ...(content && { content }),
       };
       return sanitizedQuestion;
     }),
@@ -212,6 +244,7 @@ export class ExerciseService {
       startedAt: effectiveStartedAt,
       submittedAt: now,
       idempotencyKey,
+      questionVersions: rawExercise.questions.flatMap((question) => question.updatedAt ? [{ id: question.id, updatedAt: question.updatedAt }] : []),
     });
 
     // If passing (score >= 80%), mark lesson completed

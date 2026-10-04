@@ -23,6 +23,7 @@ async function reloadSettled(page: Page) {
 }
 
 test("F1/F3/F6: admin edits blocks and arrangement tiles; student plays audio and recovers a saved quiz", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
   test.setTimeout(120_000);
   const users: string[] = [];
   const courseId = randomUUID(), courseSlug = `rc-${courseId}`, lessonSlug = `rc-${randomUUID()}`;
@@ -40,8 +41,8 @@ test("F1/F3/F6: admin edits blocks and arrangement tiles; student plays audio an
     const blockId = (await blockResponse.json()).data.id;
     await page.goto(`/admin/lessons/${lessonId}/edit`);
     await page.getByRole("button", { name: "Sửa", exact: true }).click();
-    await page.getByRole("dialog").locator("textarea").fill(JSON.stringify({ markdown: "Persisted browser edit" }));
-    await page.getByRole("button", { name: "Cập nhật khối", exact: true }).click();
+    await page.getByRole("dialog").getByLabel("Nội dung văn bản / Markdown").fill("Persisted browser edit");
+    await page.getByRole("button", { name: "Lưu khối nội dung", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await reloadSettled(page);
     await expect(page.getByText(/Persisted browser edit/)).toBeVisible();
@@ -56,27 +57,27 @@ test("F1/F3/F6: admin edits blocks and arrangement tiles; student plays audio an
         { speaker: "Lan", korean: "네", vietnamese: "Vâng" },
       ] },
     } }); expect(dialogue.status()).toBe(201);
-    const exerciseResponse = await page.request.post(`/api/admin/lessons/${lessonId}/exercises`, { data: { title: "RC arrangement", status: "PUBLISHED" } });
+    const exerciseResponse = await page.request.post(`/api/admin/lessons/${lessonId}/exercises`, { data: { title: "RC arrangement", status: "DRAFT" } });
     expect(exerciseResponse.status()).toBe(201);
     const exerciseId = (await exerciseResponse.json()).data.id;
     await reloadSettled(page);
     await page.getByRole("button", { name: "+ Thêm câu hỏi", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Loại câu hỏi", { exact: true }).selectOption("ARRANGE_SENTENCE");
-    await dialog.getByPlaceholder("Ví dụ: Chọn nguyên âm phát âm là 'a' trong tiếng Hàn").fill("Ghép câu có từ lặp lại");
+    await dialog.getByLabel("Đề bài câu hỏi", { exact: true }).fill("Ghép câu có từ lặp lại");
     // Exercise the tile CRUD/reorder controls, retaining duplicate word instances.
-    while (await dialog.getByTestId("arrangement-tile").count()) await dialog.getByRole("button", { name: "Xóa thẻ 1", exact: true }).click();
+    while (await dialog.getByLabel(/^Thẻ từ \d+$/).count()) await dialog.getByRole("button", { name: "Xóa Thẻ từ 1", exact: true }).click();
     for (const text of ["가", "가", "나", "discard"]) {
-      await dialog.getByRole("button", { name: "Thêm thẻ từ", exact: true }).click();
-      await dialog.getByTestId("arrangement-tile").last().locator("input").fill(text);
+      await dialog.getByRole("button", { name: "+ Thêm thẻ từ", exact: true }).click();
+      await dialog.getByLabel(/^Thẻ từ \d+$/).last().fill(text);
     }
-    await dialog.getByRole("button", { name: "Xóa thẻ 4", exact: true }).click();
-    await dialog.getByRole("button", { name: "Đưa lên thẻ 3", exact: true }).click();
+    await dialog.getByRole("button", { name: "Xóa Thẻ từ 4", exact: true }).click();
+    await dialog.getByRole("button", { name: "Đưa lên Thẻ từ 3", exact: true }).click();
     await dialog.getByLabel("Đáp án chuẩn", { exact: true }).fill("가 가 나");
     await dialog.getByRole("button", { name: "Lưu câu hỏi", exact: true }).click();
     await expect(dialog).toHaveCount(0); await reloadSettled(page);
     // Editing an existing question must show and preserve its bank.
-    await page.locator("div.p-3\\.5").filter({ hasText: "Ghép câu có từ lặp lại" }).getByRole("button", { name: "Sửa", exact: true }).click();
+    await page.getByRole("button", { name: "Sửa câu hỏi", exact: true }).click();
     await expect(dialog.getByLabel("Thẻ từ 1", { exact: true })).toHaveValue("가");
     await expect(dialog.getByLabel("Thẻ từ 2", { exact: true })).toHaveValue("나");
     await dialog.getByLabel("Thẻ từ 2", { exact: true }).fill("나");
@@ -84,6 +85,8 @@ test("F1/F3/F6: admin edits blocks and arrangement tiles; student plays audio an
     await expect(dialog).toHaveCount(0); await reloadSettled(page);
     const question = await prisma.question.findFirstOrThrow({ where: { exerciseId }, include: { options: { orderBy: { displayOrder: "asc" } } } });
     expect(question.options.map((o) => o.text)).toEqual(["가", "나", "가"]);
+    // Publish only after the completed draft has a valid question bank.
+    expect((await page.request.put(`/api/admin/exercises/${exerciseId}`, { data: { status: "PUBLISHED" } })).status()).toBe(200);
 
     await page.goto("/dashboard"); await page.getByRole("button", { name: /Đăng xuất/ }).first().click();
     await expect(page).toHaveURL(/dang-nhap|\/$/);

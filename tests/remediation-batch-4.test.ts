@@ -18,7 +18,7 @@ const validOptions = [
   { text: "D", isCorrect: false },
 ];
 const question = (options: typeof validOptions, type: QuestionType = QuestionType.MULTIPLE_CHOICE) => ({
-  exerciseId: authoringExerciseId, type, prompt: "Batch 4 authoring check", options,
+  exerciseId: authoringExerciseId, type, prompt: "Batch 4 authoring check", options, audioUrl: type === "LISTENING_CHOICE" ? "/audio/exercises/vowel-a.ogg" : null,
 });
 
 describe("Batch 4 authoring and configuration", () => {
@@ -34,8 +34,8 @@ describe("Batch 4 authoring and configuration", () => {
     await prisma.exercise.delete({ where: { id: authoringExerciseId } });
   });
 
-  it("requires four choices and exactly one correct answer on create and update", async () => {
-    for (const count of [0, 2, 3, 5]) {
+  it("requires at least two choices and exactly one correct answer on create and update", async () => {
+    for (const count of [0, 1]) {
       const options = count === 5 ? [...validOptions, { text: "E", isCorrect: false }] : validOptions.slice(0, count);
       expect(QuestionFormSchema.safeParse(question(options)).success).toBe(false);
       await expect(adminService.createQuestion(admin, question(options))).rejects.toThrow(ValidationError);
@@ -48,10 +48,11 @@ describe("Batch 4 authoring and configuration", () => {
     const created = await adminService.createQuestion(admin, question(validOptions));
     expect(created?.options).toHaveLength(4);
     try {
-      await expect(adminService.updateQuestion(admin, created!.id, { options: validOptions.slice(0, 3) })).rejects.toThrow(ValidationError);
+      await expect(adminService.updateQuestion(admin, created!.id, { options: validOptions.slice(0, 1) })).rejects.toThrow(ValidationError);
+      expect((await adminService.updateQuestion(admin, created!.id, { options: validOptions.slice(0, 2) }))?.options).toHaveLength(2);
       await expect(adminService.updateQuestion(admin, created!.id, { options: validOptions.map((option) => ({ ...option, isCorrect: true })) })).rejects.toThrow(ValidationError);
       const updated = await adminService.updateQuestion(admin, created!.id, { prompt: "Updated valid question" });
-      expect(updated?.options).toHaveLength(4);
+      expect(updated?.options).toHaveLength(2);
     } finally {
       await prisma.question.delete({ where: { id: created!.id } });
     }

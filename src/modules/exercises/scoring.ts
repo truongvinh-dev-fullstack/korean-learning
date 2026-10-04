@@ -1,6 +1,8 @@
 import { QuestionType } from "@prisma/client";
 import { RawExerciseWithGrading, RawQuestionWithGrading } from "./exercise.service";
 import { ValidationError } from "@/shared/errors/domain-errors";
+import { parseQuestionContent } from "./question.schema";
+import { gradeStructuredQuestion, parseMatchingAnswer } from "./structured-scoring";
 
 export interface StudentQuestionAnswerInput {
   questionId: string;
@@ -53,8 +55,32 @@ export function validateExerciseAnswers(
         if (!hasOption || hasTiles || hasText || !question.options.some((option) => option.id === answer.selectedOptionId)) throw invalid();
         break;
       case QuestionType.FILL_BLANK:
+      case QuestionType.TRANSLATION:
         if (!hasText || hasOption || hasTiles) throw invalid();
         break;
+      case QuestionType.TRUE_FALSE:
+        if (hasOption || hasTiles || !["true", "false"].includes(answer.textAnswer ?? "")) throw invalid();
+        break;
+      case QuestionType.MULTIPLE_SELECT: {
+        const ids = answer.selectedOptionIds ?? [];
+        if (!hasTiles || hasOption || hasText || new Set(ids).size !== ids.length || ids.some((id) => !question.options.some((option) => option.id === id))) throw invalid();
+        break;
+      }
+      case QuestionType.MATCHING: {
+        const content = parseQuestionContent(question.type, question.content);
+        const pairs = parseMatchingAnswer(answer.textAnswer);
+        if (hasOption || hasTiles || !pairs || Object.keys(pairs).length !== content.pairs.length ||
+          new Set(Object.values(pairs)).size !== content.pairs.length ||
+          Object.entries(pairs).some(([left, right]) => !content.pairs.some((pair) => pair.leftId === left) || !content.pairs.some((pair) => pair.rightId === right))) throw invalid();
+        break;
+      }
+      case QuestionType.ORDERING: {
+        const content = parseQuestionContent(question.type, question.content);
+        const ids = answer.selectedOptionIds ?? [];
+        if (!hasTiles || hasOption || hasText || ids.length !== content.items.length || new Set(ids).size !== ids.length ||
+          ids.some((id) => !content.items.some((item) => item.id === id))) throw invalid();
+        break;
+      }
       case QuestionType.ARRANGE_SENTENCE: {
         if (!hasTiles || hasOption || hasText) throw invalid();
         const ids = answer.selectedOptionIds!;
@@ -76,17 +102,17 @@ export function validateExerciseAnswers(
  * 5. Collapses multiple internal whitespace characters into a single space.
  * 6. Case-folds Latin characters for case-insensitive matching while preserving Hangul syllables.
  */
-export function normalizeFillBlankAnswer(input: unknown): string {
+export function normalizeFillBlankAnswer(input: unknown, caseSensitive = false): string {
   if (typeof input !== "string") {
     return "";
   }
 
-  return input
+  const value = input
     .normalize("NFC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "") // strip zero-width characters
     .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+    .replace(/\s+/g, " ");
+  return caseSensitive ? value : value.toLowerCase();
 }
 
 /**
@@ -120,6 +146,8 @@ export function gradeQuestion(
       `Question ID mismatch: expected ${question.id}, got ${answerInput.questionId}`
     );
   }
+  const structured = gradeStructuredQuestion(question, answerInput);
+  if (structured) return structured;
 
   switch (question.type) {
     case QuestionType.MULTIPLE_CHOICE:
@@ -170,9 +198,9 @@ export function gradeQuestion(
     }
 
     case QuestionType.FILL_BLANK: {
-      const studentNorm = normalizeFillBlankAnswer(answerInput.textAnswer);
-      const targetNorm = normalizeFillBlankAnswer(question.correctAnswer);
-      const isCorrect = studentNorm.length > 0 && studentNorm === targetNorm;
+      const content = parseQuestionContent(question.type, question.content, question.correctAnswer);
+      const studentNorm = normalizeFillBlankAnswer(answerInput.textAnswer, content.caseSensitive);
+      const isCorrect = studentNorm.length > 0 && content.answers.some((target) => normalizeFillBlankAnswer(target, content.caseSensitive) === studentNorm);
 
       return {
         questionId: question.id,
@@ -181,7 +209,7 @@ export function gradeQuestion(
         score: isCorrect ? maxScore : 0,
         maxScore,
         studentAnswerDisplay: answerInput.textAnswer?.trim() || "(Chưa nhập)",
-        correctAnswerDisplay: question.correctAnswer || "",
+        correctAnswerDisplay: content.answers.join(" / "),
         explanation: question.explanation || null,
       };
     }

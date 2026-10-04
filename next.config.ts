@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readAiProviderConfig } from "./src/modules/ai-lessons/ai-provider.config";
+
+// Validate while loading config as well as instrumentation: this Next release can
+// keep a process alive after a rejected instrumentation hook.
+readAiProviderConfig();
 
 const nextConfig: NextConfig = {
   experimental: { authInterrupts: true },

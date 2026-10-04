@@ -7,6 +7,11 @@ const email = `vocabulary_audio_${Date.now()}@example.com`;
 test.afterEach(async () => { await cleanupAccounts([email]); });
 
 test("plays the exact vocabulary recording in lesson cards, summary and admin preview", async ({ page }) => {
+  // Exercise the recording fallback; speech playback is covered separately in unit tests.
+  await page.addInitScript(() => {
+    Reflect.deleteProperty(window, "speechSynthesis");
+    Reflect.deleteProperty(window, "SpeechSynthesisUtterance");
+  });
   await page.goto("/dang-ky");
   await page.fill("#name", "Học viên nghe từ vựng");
   await page.fill("#email", email);
@@ -64,11 +69,13 @@ test("plays the exact vocabulary recording in lesson cards, summary and admin pr
   await expect(page.getByRole("button", { name: "Nghe phát âm 아이", exact: true }).last()).toBeEnabled();
   await page.goto("/admin/lessons/l0000000-0000-4000-a000-000000000001/edit");
   await page.getByRole("button", { name: "+ Thêm từ vựng", exact: true }).click();
-  await page.getByPlaceholder("Ví dụ: 사과").fill("아이");
-  await page.getByPlaceholder("/audio/vocab/sagwa.mp3").fill("/audio/vocab/ai.ogg");
-  const preview = page.getByRole("button", { name: "Nghe phát âm 아이", exact: true });
-  await expect(preview).toBeEnabled();
-  const audioResponse = page.waitForResponse((response) => response.url().endsWith("/audio/vocab/ai.ogg"));
-  await preview.click();
-  expect((await audioResponse).status()).toBeLessThan(400);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Từ tiếng Hàn (Hangeul)", { exact: true }).fill("아이");
+  await dialog.getByLabel("Audio từ vựng", { exact: true }).fill("/audio/vocab/ai.ogg");
+  const preview = dialog.getByLabel("Nghe thử Audio từ vựng");
+  await expect(preview).toBeVisible();
+  expect(await preview.evaluate(async (element) => {
+    const audio = element as HTMLAudioElement;
+    await audio.play(); const playing = !audio.paused; audio.pause(); return playing;
+  })).toBe(true);
 });

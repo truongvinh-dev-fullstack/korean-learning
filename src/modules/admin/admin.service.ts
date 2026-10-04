@@ -18,6 +18,8 @@ import {
   ReorderSchema,
 } from "./admin.schema";
 import { prisma } from "@/shared/db/prisma";
+import { isManualQuestion } from "@/modules/exercises/question.schema";
+import { contentForTypeChange } from "@/modules/lessons/lesson-content";
 
 export class AdminService {
   constructor(private readonly repo: AdminRepository = adminRepository) {}
@@ -564,15 +566,7 @@ export class AdminService {
       throw new NotFoundError("Bài học không tồn tại.");
     }
 
-    const displayOrder =
-      parsed.data.displayOrder !== undefined && parsed.data.displayOrder > 0
-        ? parsed.data.displayOrder
-        : await this.repo.getNextBlockDisplayOrder(parsed.data.lessonId);
-
-    return this.repo.createBlock({
-      ...parsed.data,
-      displayOrder,
-    });
+    return this.repo.createBlock(parsed.data);
   }
 
   async updateBlock(
@@ -601,6 +595,9 @@ export class AdminService {
       displayOrder: existing.displayOrder,
       content: existing.content,
       ...parsed.data,
+      ...(parsed.data.type !== undefined && parsed.data.type !== existing.type && {
+        content: contentForTypeChange(existing.type, parsed.data.type, parsed.data.content),
+      }),
     });
     if (!effective.success) {
       throw new ValidationError("Dữ liệu cập nhật khối nội dung không hợp lệ.", effective.error.format());
@@ -608,7 +605,8 @@ export class AdminService {
     if (effective.data.lessonId !== existing.lessonId) {
       throw new ValidationError("Không thể chuyển khối nội dung sang bài học khác.");
     }
-    return this.repo.updateBlock(id, effective.data);
+    return this.repo.updateBlock(id, { type: effective.data.type, content: effective.data.content,
+      ...(parsed.data.displayOrder !== undefined && { displayOrder: parsed.data.displayOrder }) });
   }
 
   async deleteBlock(
@@ -686,15 +684,7 @@ export class AdminService {
       throw new NotFoundError("Bài học không tồn tại.");
     }
 
-    const displayOrder =
-      parsed.data.displayOrder !== undefined && parsed.data.displayOrder > 0
-        ? parsed.data.displayOrder
-        : await this.repo.getNextVocabularyDisplayOrder(parsed.data.lessonId);
-
-    return this.repo.createVocabulary({
-      ...parsed.data,
-      displayOrder,
-    });
+    return this.repo.createVocabulary(parsed.data);
   }
 
   async updateVocabulary(
@@ -714,6 +704,9 @@ export class AdminService {
       throw new ValidationError("Dữ liệu cập nhật từ vựng không hợp lệ.", parsed.error.format());
     }
 
+    if (parsed.data.lessonId !== undefined && parsed.data.lessonId !== existing.lessonId) {
+      throw new ValidationError("Không thể chuyển từ vựng sang bài học khác.");
+    }
     return this.repo.updateVocabulary(id, parsed.data);
   }
 
@@ -799,15 +792,7 @@ export class AdminService {
       throw new NotFoundError("Bài học không tồn tại.");
     }
 
-    const displayOrder =
-      parsed.data.displayOrder !== undefined && parsed.data.displayOrder > 0
-        ? parsed.data.displayOrder
-        : await this.repo.getNextExerciseDisplayOrder(parsed.data.lessonId);
-
-    return this.repo.createExercise({
-      ...parsed.data,
-      displayOrder,
-    });
+    return this.repo.createExercise(parsed.data);
   }
 
   async updateExercise(
@@ -827,6 +812,7 @@ export class AdminService {
       throw new ValidationError("Dữ liệu cập nhật bài tập không hợp lệ.", parsed.error.format());
     }
 
+    if (parsed.data.lessonId !== undefined && parsed.data.lessonId !== existing.lessonId) throw new ValidationError("Không thể chuyển bài tập sang bài học khác.");
     return this.repo.updateExercise(id, parsed.data);
   }
 
@@ -900,16 +886,11 @@ export class AdminService {
     if (!exercise) {
       throw new NotFoundError("Bài tập không tồn tại.");
     }
+    if (isManualQuestion(parsed.data.type) && exercise.status === "PUBLISHED") {
+      throw new ValidationError("Chuyển bài tập sang bản nháp trước khi thêm câu chấm thủ công.");
+    }
 
-    const displayOrder =
-      parsed.data.displayOrder !== undefined && parsed.data.displayOrder > 0
-        ? parsed.data.displayOrder
-        : await this.repo.getNextQuestionDisplayOrder(parsed.data.exerciseId);
-
-    return this.repo.createQuestion({
-      ...parsed.data,
-      displayOrder,
-    });
+    return this.repo.createQuestion(parsed.data);
   }
 
   async updateQuestion(
@@ -942,6 +923,10 @@ export class AdminService {
       prompt: parsed.data.prompt ?? existing.prompt,
       audioUrl: parsed.data.audioUrl !== undefined ? parsed.data.audioUrl : existing.audioUrl,
       correctAnswer: parsed.data.correctAnswer !== undefined ? parsed.data.correctAnswer : existing.correctAnswer,
+      content: parsed.data.content !== undefined ? parsed.data.content
+        : (parsed.data.type ?? existing.type) === "FILL_BLANK" && parsed.data.correctAnswer !== undefined
+          ? { answers: parsed.data.correctAnswer ? [parsed.data.correctAnswer] : [], caseSensitive: false }
+          : parsed.data.type && parsed.data.type !== existing.type ? null : existing.content,
       explanation: parsed.data.explanation !== undefined ? parsed.data.explanation : existing.explanation,
       displayOrder: parsed.data.displayOrder ?? existing.displayOrder,
       options: parsed.data.options ?? existing.options.map((option) => ({
@@ -955,7 +940,9 @@ export class AdminService {
     if (!effective.success) {
       throw new ValidationError("Dữ liệu cập nhật câu hỏi không hợp lệ.", effective.error.format());
     }
-    return this.repo.updateQuestion(id, parsed.data);
+    const exercise = await this.repo.findExerciseById(existing.exerciseId);
+    if (isManualQuestion(effective.data.type) && exercise?.status === "PUBLISHED") throw new ValidationError("Câu chấm thủ công chỉ được lưu trong bài tập nháp.");
+    return this.repo.updateQuestion(id, { ...parsed.data, content: effective.data.content });
   }
 
   async deleteQuestion(

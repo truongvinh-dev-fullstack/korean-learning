@@ -54,7 +54,7 @@ describe("LessonBlock Validation & Schemas", () => {
       ],
     };
     const result = validateBlockContent("VOCABULARY", validVocab);
-    expect(result.items[0].hangul).toBe("아이");
+    expect(result.items?.[0].hangul).toBe("아이");
   });
 
   it("validates GRAMMAR block with formula and examples", () => {

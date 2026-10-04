@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ContentStatus, BlockType, QuestionType } from "@prisma/client";
-import { LessonBlockContentMap } from "@/modules/lessons/lesson-block.schema";
+import { LessonBlockDiscriminatedSchema } from "@/modules/lessons/lesson-block.schema";
 import { canConstructArrangement } from "@/modules/exercises/arrangement";
+import { parseQuestionContent, QuestionVariantSchema } from "@/modules/exercises/question.schema";
 export { AudioUrlSchema } from "@/shared/validation/audio-url";
 import { AudioUrlSchema } from "@/shared/validation/audio-url";
 
@@ -79,10 +80,13 @@ export const LessonFormSchema = z.object({
       "Slug chỉ được chứa chữ cái thường không dấu, số và dấu gạch ngang (ví dụ: bai-1-nguyen-am-co-ban)"
     ),
   summary: z.string().trim().optional().nullable(),
+  level: z.string().trim().max(100).optional().nullable(),
+  tags: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+  learningObjectives: z.array(z.string().trim().min(1, "Mục tiêu không được để trống").max(500)).max(100).optional(),
   estimatedMinutes: z.coerce
     .number()
     .int("Thời gian học phải là số nguyên")
-    .min(1, "Thời lượng ước tính tối thiểu 1 phút")
+    .min(0, "Thời lượng không được âm")
     .max(180, "Thời lượng ước tính tối đa 180 phút")
     .optional(),
   status: z.nativeEnum(ContentStatus).optional(),
@@ -100,30 +104,10 @@ export const LessonBlockFieldsSchema = z.object({
   content: z.unknown(),
 });
 export const LessonBlockPatchSchema = LessonBlockFieldsSchema.partial();
-export const LessonBlockFormSchema = LessonBlockFieldsSchema.superRefine((data, ctx) => {
-  const schema = LessonBlockContentMap[data.type as keyof typeof LessonBlockContentMap];
-  if (!schema) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Loại khối nội dung "${data.type}" không được hỗ trợ`,
-      path: ["type"],
-    });
-    return;
-  }
-  const result = schema.safeParse(data.content);
-  if (!result.success) {
-    result.error.issues.forEach((issue) => {
-      ctx.addIssue({
-        ...issue,
-        path: ["content", ...issue.path],
-      });
-    });
-  }
-}).transform((data) => ({
-  ...data,
-  // Persist the type-specific parsed content, including defaults and stripped fields.
-  content: LessonBlockContentMap[data.type].parse(data.content),
-}));
+export const LessonBlockFormSchema = z.object({
+  lessonId: z.string().min(1, "Bài học không hợp lệ"),
+  displayOrder: z.coerce.number().int().min(0).optional(),
+}).and(LessonBlockDiscriminatedSchema);
 export type LessonBlockFormData = z.infer<typeof LessonBlockFormSchema>;
 
 // 5. Vocabulary Schema
@@ -154,6 +138,8 @@ export const VocabularyFormSchema = z.object({
   audioUrl: AudioUrlSchema.optional().nullable(),
   exampleSentenceHangul: z.string().trim().max(500).optional().nullable(),
   exampleSentenceVi: z.string().trim().max(500).optional().nullable(),
+  difficulty: z.number().int().min(1).max(5).optional().nullable(),
+  tags: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
 });
 export type VocabularyFormData = z.infer<typeof VocabularyFormSchema>;
@@ -193,6 +179,7 @@ const QuestionFormFieldsSchema = z.object({
     .min(1, "Đề bài câu hỏi không được để trống"),
   audioUrl: AudioUrlSchema.optional().nullable(),
   correctAnswer: z.string().trim().optional().nullable(),
+  content: z.unknown().optional(),
   explanation: z.string().trim().optional().nullable(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   options: z.array(QuestionOptionSchema).default([]),
@@ -201,24 +188,26 @@ const QuestionFormFieldsSchema = z.object({
 export const QuestionPatchSchema = QuestionFormFieldsSchema.omit({ options: true })
   .partial()
   .extend({ options: z.array(QuestionOptionSchema).optional() });
+export type QuestionPatchData = z.infer<typeof QuestionPatchSchema>;
 
 export const QuestionFormSchema = QuestionFormFieldsSchema.superRefine((data, ctx) => {
-  if (data.type === QuestionType.MULTIPLE_CHOICE || data.type === QuestionType.LISTENING_CHOICE) {
-    if (data.options.length !== 4) {
+  if (data.type === QuestionType.MULTIPLE_CHOICE || data.type === QuestionType.LISTENING_CHOICE || data.type === QuestionType.MULTIPLE_SELECT) {
+    if (data.options.length < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Câu hỏi trắc nghiệm phải có đúng 4 đáp án lựa chọn",
+        message: "Câu hỏi cần ít nhất 2 đáp án lựa chọn",
         path: ["options"],
       });
     }
-    if (data.options.filter((option) => option.isCorrect).length !== 1) {
+    const correctCount = data.options.filter((option) => option.isCorrect).length;
+    if (data.type === QuestionType.MULTIPLE_SELECT ? correctCount < 1 : correctCount !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Câu hỏi trắc nghiệm phải có đúng 1 đáp án chính xác",
+        message: data.type === QuestionType.MULTIPLE_SELECT ? "Chọn ít nhất 1 đáp án đúng" : "Câu hỏi trắc nghiệm phải có đúng 1 đáp án chính xác",
         path: ["options"],
       });
     }
-  } else if (data.type === QuestionType.FILL_BLANK || data.type === QuestionType.ARRANGE_SENTENCE) {
+  } else if (data.type === QuestionType.ARRANGE_SENTENCE) {
     if (!data.correctAnswer || data.correctAnswer.trim().length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -234,7 +223,14 @@ export const QuestionFormSchema = QuestionFormFieldsSchema.superRefine((data, ct
       });
     }
   }
-});
+  if (data.type === QuestionType.LISTENING_CHOICE && !data.audioUrl) {
+    ctx.addIssue({ code: "custom", message: "Câu hỏi nghe cần đường dẫn âm thanh", path: ["audioUrl"] });
+  }
+  try { parseQuestionContent(data.type, data.content, data.correctAnswer); }
+  catch (error) {
+    if (error instanceof z.ZodError) error.issues.forEach((issue) => ctx.addIssue({ ...issue, path: ["content", ...issue.path] }));
+  }
+}).transform((data) => ({ ...data, ...QuestionVariantSchema.parse({ type: data.type, content: parseQuestionContent(data.type, data.content, data.correctAnswer) }) }));
 export type QuestionFormData = z.infer<typeof QuestionFormSchema>;
 
 // 8. Reorder Schema

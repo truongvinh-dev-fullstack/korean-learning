@@ -3,6 +3,7 @@ import { test, expect } from "./fixtures";
 import { prisma } from "../src/shared/db/prisma";
 
 test("protected and admin screens fit phone, tablet, and desktop; admin audio preview plays", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
   const email = `batch4-layout-${randomUUID()}@example.com`;
   let userId: string | undefined;
   try {
@@ -41,8 +42,8 @@ test("protected and admin screens fit phone, tablet, and desktop; admin audio pr
     await page.getByRole("button", { name: /Thêm khối nội dung/ }).click();
     const dialog = page.getByRole("dialog");
     await dialog.locator("select").first().selectOption("AUDIO");
-    await dialog.locator('input[placeholder*="/audio/hangul/a.mp3"]').fill("/audio/lessons/korean-vowels.ogg");
-    const preview = dialog.getByLabel("Nghe thử âm thanh");
+    await dialog.getByLabel("Đường dẫn audio", { exact: true }).fill("/audio/lessons/korean-vowels.ogg");
+    const preview = dialog.getByLabel("Nghe thử Đường dẫn audio");
     await expect(preview).toBeVisible();
     await expect(preview).toHaveAttribute("src", "/audio/lessons/korean-vowels.ogg");
     expect(await preview.evaluate(async (element) => {

@@ -7,6 +7,7 @@ import { SanitizedExercise, SanitizedQuestion } from "@/modules/exercises/exerci
 import { QuestionType } from "@prisma/client";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { ExerciseResultDto } from "@/modules/exercises/result";
+import { StructuredQuestionInput, isQuestionAnswered } from "./structured-question-input";
 
 export interface ExerciseRunnerProps {
   exercise: SanitizedExercise;
@@ -44,14 +45,7 @@ export function ExerciseRunner({
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] || {} : {};
 
   // Count answered questions
-  const answeredCount = questions.filter((q) => {
-    const ans = answers[q.id];
-    if (!ans) return false;
-    if (ans.selectedOptionId) return true;
-    if (ans.selectedOptionIds && ans.selectedOptionIds.length > 0) return true;
-    if (ans.textAnswer && ans.textAnswer.trim().length > 0) return true;
-    return false;
-  }).length;
+  const answeredCount = questions.filter((question) => isQuestionAnswered(question, answers[question.id])).length;
 
   // Handlers for question answer changes
   const handleSelectOption = (optionId: string) => {
@@ -338,6 +332,7 @@ export function ExerciseRunner({
           </div>
 
           {/* 1. MULTIPLE_CHOICE or LISTENING_CHOICE */}
+          <StructuredQuestionInput question={currentQuestion} answer={currentAnswer} onChange={(answer) => setAnswers((previous) => ({ ...previous, [currentQuestion.id]: answer }))} />
           {(currentQuestion.type === QuestionType.MULTIPLE_CHOICE ||
             currentQuestion.type === QuestionType.LISTENING_CHOICE) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

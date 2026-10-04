@@ -2,6 +2,8 @@ import { prisma } from "@/shared/db/prisma";
 import { ContentStatus } from "@prisma/client";
 import { RawExerciseWithGrading } from "./exercise.service";
 import { ExerciseGradingResult, StudentQuestionAnswerInput } from "./scoring";
+import { withSerializableRetry } from "@/shared/db/serializable-transaction";
+import { ConflictError } from "@/shared/errors/domain-errors";
 
 export class ExerciseRepository {
   /**
@@ -16,10 +18,10 @@ export class ExerciseRepository {
       },
       include: {
         questions: {
-          orderBy: { displayOrder: "asc" },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
           include: {
             options: {
-              orderBy: { displayOrder: "asc" },
+              orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
             },
           },
         },
@@ -37,13 +39,13 @@ export class ExerciseRepository {
         status: ContentStatus.PUBLISHED,
         lesson: { status: ContentStatus.PUBLISHED, chapter: { status: ContentStatus.PUBLISHED, course: { status: ContentStatus.PUBLISHED } } },
       },
-      orderBy: { displayOrder: "asc" },
+      orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
       include: {
         questions: {
-          orderBy: { displayOrder: "asc" },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
           include: {
             options: {
-              orderBy: { displayOrder: "asc" },
+              orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
             },
           },
         },
@@ -113,6 +115,7 @@ export class ExerciseRepository {
     startedAt,
     submittedAt,
     idempotencyKey,
+    questionVersions,
   }: {
     userId: string;
     exerciseId: string;
@@ -121,8 +124,16 @@ export class ExerciseRepository {
     startedAt: Date;
     submittedAt: Date;
     idempotencyKey?: string;
+    questionVersions?: { id: string; updatedAt: Date }[];
   }) {
-    return prisma.$transaction(async (tx) => {
+    return withSerializableRetry(async (tx) => {
+      if (questionVersions?.length) {
+        const current = await tx.question.findMany({ where: { exerciseId }, select: { id: true, updatedAt: true } });
+        if (current.length !== questionVersions.length || current.some((question) =>
+          !questionVersions.some((version) => version.id === question.id && version.updatedAt.getTime() === question.updatedAt.getTime()))) {
+          throw new ConflictError("Nội dung bài tập vừa thay đổi. Tải lại bài tập trước khi nộp.");
+        }
+      }
       // 1. Create ExerciseAttempt
       const attempt = await tx.exerciseAttempt.create({
         data: {
@@ -151,7 +162,7 @@ export class ExerciseRepository {
             selectedOptionId: rawAns?.selectedOptionId || null,
             textAnswer:
               rawAns?.textAnswer ||
-              (rawAns?.selectedOptionIds ? rawAns.selectedOptionIds.join(",") : null),
+              (rawAns?.selectedOptionIds ? graded.type === "ARRANGE_SENTENCE" ? rawAns.selectedOptionIds.join(",") : JSON.stringify(rawAns.selectedOptionIds) : null),
             isCorrect: graded.isCorrect,
             score: graded.score,
           },

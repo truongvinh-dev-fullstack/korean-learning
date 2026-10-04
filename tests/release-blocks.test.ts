@@ -20,6 +20,8 @@ const contents = {
   DIALOGUE: { lines: [{ speaker: "A", korean: "안녕", vietnamese: "Chào" }] },
   AUDIO: { audioUrl: "/audio/vocab/mul.ogg" },
   CALLOUT: { message: "Updated note" },
+  EXAMPLE: { items: [{ korean: "아이", vietnamese: "Em bé" }] },
+  IMAGE: { imageUrl: "/images/lesson.png" },
 };
 let courseId: string, lessonId: string;
 beforeEach(async () => {

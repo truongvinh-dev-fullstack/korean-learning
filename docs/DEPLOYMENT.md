@@ -46,6 +46,11 @@ Không commit file này hoặc gửi URI có mật khẩu vào chat.
 | `BETTER_AUTH_SECRET` | Secret production đã tạo |
 | `BETTER_AUTH_URL` | Domain HTTPS production của Vercel |
 | `NEXT_PUBLIC_APP_URL` | Cùng domain HTTPS production |
+| `AI_LESSON_PROVIDER` | `disabled` khi chưa cấu hình AI thật; `openai` hoặc `http` khi đã có key/model hợp lệ |
+
+Phase Lesson Detail/AI hiện tại yêu cầu cấu hình provider production rõ ràng. Nếu bật OpenAI, thêm `AI_LESSON_API_KEY`, `AI_LESSON_MODEL` (model hỗ trợ Responses + Structured Outputs) và các giới hạn từ `.env.production.example`; key chỉ ở server. Không dùng mock ở production. Xem [AI_PROVIDER_HARDENING.md](AI_PROVIDER_HARDENING.md) để chạy smoke test. Khi chưa có key/model, đặt `AI_LESSON_PROVIDER=disabled` trên Vercel; website và Lesson Detail vẫn chạy, generate AI báo chưa sẵn sàng.
+
+Repository có `.env.production` chỉ chứa cấu hình không bí mật `AI_LESSON_PROVIDER=disabled`, để deploy được trước khi thêm provider thật. Biến trong Vercel Environment Variables được Next.js ưu tiên hơn file này. Không thêm key, URI database hoặc secret vào `.env.production`; các giá trị đó phải nằm trong Vercel hoặc file `.env.production.local` được Git bỏ qua.
 
 Không thêm `POSTGRES_PASSWORD`, `PORT` hay `NODE_ENV` vào Vercel. Next.js/Vercel tự đặt môi trường production. Không đặt prefix `NEXT_PUBLIC_` cho URI database hoặc secret.
 

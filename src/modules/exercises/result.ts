@@ -1,4 +1,3 @@
-import { QuestionType } from "@prisma/client";
 import type { ExerciseRepository } from "./exercise.repository";
 import { gradeQuestion, type QuestionGradingResult } from "./scoring";
 
@@ -16,6 +15,15 @@ export interface ExerciseResultDto {
 
 type StoredAttempt = NonNullable<Awaited<ReturnType<ExerciseRepository["findAttemptById"]>>>;
 
+function storedSelectedIds(value: string | null) {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.every((id) => typeof id === "string")) return parsed;
+  } catch { /* Legacy selections were stored as comma-separated UUIDs. */ }
+  return value.split(",");
+}
+
 export function serializeExerciseResult(attempt: StoredAttempt): ExerciseResultDto {
   return {
     attemptId: attempt.id,
@@ -31,8 +39,8 @@ export function serializeExerciseResult(attempt: StoredAttempt): ExerciseResultD
         ...gradeQuestion(answer.question, {
           questionId: answer.questionId,
           selectedOptionId: answer.selectedOptionId,
-          ...(answer.question.type === QuestionType.ARRANGE_SENTENCE
-            ? { selectedOptionIds: answer.textAnswer?.split(",") ?? [] }
+          ...(["ARRANGE_SENTENCE", "MULTIPLE_SELECT", "ORDERING"].includes(answer.question.type)
+            ? { selectedOptionIds: storedSelectedIds(answer.textAnswer) }
             : { textAnswer: answer.textAnswer }),
         }),
         // Scores and correctness remain the persisted evaluation, not a new attempt.

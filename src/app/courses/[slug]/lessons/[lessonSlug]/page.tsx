@@ -6,6 +6,7 @@ import { exerciseService } from "@/modules/exercises/exercise.service";
 import { progressService } from "@/modules/progress/progress.service";
 import { getServerSession } from "@/shared/auth/session";
 import { LessonBlockRenderer } from "@/components/lessons/lesson-block-renderer";
+import { LearningObjectives } from "@/components/lessons/learning-objectives";
 import { LessonNavigation } from "@/components/lessons/lesson-navigation";
 import { LessonProgressAction } from "@/components/lessons/lesson-progress-action";
 import { ExerciseRunner } from "@/components/exercises/exercise-runner";
@@ -131,6 +132,7 @@ export default async function LessonReaderPage({ params }: LessonPageProps) {
       />
 
       {/* Structured Content Blocks */}
+      <LearningObjectives objectives={lesson.learningObjectives} />
       <main className="space-y-6">
         {lesson.blocks.map((block) => (
           <LessonBlockRenderer key={block.id} block={block} vocabularies={lesson.vocabularies} />

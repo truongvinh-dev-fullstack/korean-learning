@@ -23,6 +23,8 @@ enum BlockType {
   DIALOGUE
   AUDIO
   CALLOUT
+  EXAMPLE
+  IMAGE
 }
 
 enum QuestionType {
@@ -30,6 +32,13 @@ enum QuestionType {
   FILL_BLANK
   ARRANGE_SENTENCE
   LISTENING_CHOICE
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  MATCHING
+  ORDERING
+  TRANSLATION
+  WRITING
+  PRONUNCIATION
 }
 
 enum LessonProgressStatus {
@@ -97,6 +106,9 @@ model Lesson {
   title            String
   summary          String?
   estimatedMinutes Int           @default(15)
+  level            String?
+  tags             String[]      @default([])
+  learningObjectives String[]    @default([])
   displayOrder     Int           @default(0)
   status           ContentStatus @default(DRAFT)
   createdAt        DateTime      @default(now())
@@ -107,10 +119,33 @@ model Lesson {
   vocabularies Vocabulary[]
   exercises    Exercise[]
   progresses   LessonProgress[]
+  aiImports    AiLessonImport[]
 
   @@index([chapterId, displayOrder])
   @@index([slug])
   @@index([status])
+}
+
+// Atomic receipt for confirmed AI imports; drafts are never persisted here.
+model AiLessonImport {
+  idempotencyKey String   @id
+  userId         String
+  requestHash    String
+  generationMetadata Json?
+  lessonId       String?
+  createdAt      DateTime @default(now())
+  lesson         Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  @@index([lessonId])
+}
+
+// Shared per-admin rate window and expiring generation lease; no draft content.
+model AiLessonGenerationLimit {
+  userId String @id
+  windowStart DateTime
+  requestCount Int @default(0)
+  activeRequestId String?
+  leaseExpiresAt DateTime?
 }
 
 model LessonBlock {
@@ -135,6 +170,8 @@ model Vocabulary {
   englishMeaning        String
   vietnameseMeaning     String
   partOfSpeech          String?
+  difficulty            Int?
+  tags                  String[] @default([])
   audioUrl              String?
   exampleSentenceHangul String?
   exampleSentenceVi     String?
@@ -174,6 +211,7 @@ model Question {
   prompt        String
   audioUrl      String?
   correctAnswer String?
+  content       Json?
   explanation   String?
   displayOrder  Int          @default(0)
   createdAt     DateTime     @default(now())

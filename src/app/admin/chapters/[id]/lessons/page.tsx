@@ -62,6 +62,7 @@ export default async function AdminChapterLessonsPage({
       </div>
 
       {/* Lessons Table */}
+      <Link href={`/admin/ai-lessons?chapterId=${chapter.id}`} className="inline-block rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white">AI tạo bài học</Link>
       <LessonsTable chapterId={chapter.id} initialLessons={chapter.lessons} />
     </div>
   );

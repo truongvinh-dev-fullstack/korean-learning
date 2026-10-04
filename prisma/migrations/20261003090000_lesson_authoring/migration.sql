@@ -1,0 +1,16 @@
+-- Additive only: existing enum values, records, IDs, attempts and JSON stay intact.
+ALTER TYPE "BlockType" ADD VALUE 'EXAMPLE';
+ALTER TYPE "BlockType" ADD VALUE 'IMAGE';
+ALTER TYPE "QuestionType" ADD VALUE 'MULTIPLE_SELECT';
+ALTER TYPE "QuestionType" ADD VALUE 'TRUE_FALSE';
+ALTER TYPE "QuestionType" ADD VALUE 'MATCHING';
+ALTER TYPE "QuestionType" ADD VALUE 'ORDERING';
+ALTER TYPE "QuestionType" ADD VALUE 'TRANSLATION';
+ALTER TYPE "QuestionType" ADD VALUE 'WRITING';
+ALTER TYPE "QuestionType" ADD VALUE 'PRONUNCIATION';
+ALTER TABLE "Lesson" ADD COLUMN "level" TEXT,
+  ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN "learningObjectives" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Vocabulary" ADD COLUMN "difficulty" INTEGER,
+  ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Question" ADD COLUMN "content" JSONB;

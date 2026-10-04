@@ -1,0 +1,104 @@
+{
+  "lesson": {
+    "id": "example-lesson-1",
+    "chapterId": "example-chapter-1",
+    "title": "Bài 1: 10 Nguyên âm cơ bản",
+    "slug": "bai-1-10-nguyen-am-co-ban",
+    "summary": "Nhận biết, đọc và luyện viết 10 nguyên âm cơ bản; làm quen với năm từ đơn giản.",
+    "estimatedMinutes": 20,
+    "level": "BEGINNER_1",
+    "tags": ["hangul", "nguyen-am"],
+    "status": "PUBLISHED",
+    "displayOrder": 0,
+    "learningObjectives": [
+      "Nhận biết 10 nguyên âm cơ bản.",
+      "Đọc đúng từng nguyên âm theo bản ghi mẫu.",
+      "Luyện viết các nguyên âm đã học.",
+      "Nhận biết năm từ trong ngân hàng từ vựng của bài."
+    ]
+  },
+  "contentBlocks": [
+    {
+      "id": "example-block-text", "lessonId": "example-lesson-1", "type": "TEXT", "displayOrder": 0,
+      "content": {
+        "title": "Làm quen với nguyên âm",
+        "markdown": "Bài học giới thiệu ㅏ, ㅓ, ㅗ, ㅜ, ㅡ, ㅣ, ㅑ, ㅕ, ㅛ, ㅠ.\nQuan sát mặt chữ, nghe bản ghi và nhắc lại từng âm. Trong các từ ví dụ, ㅇ ở đầu âm tiết không phát âm."
+      }
+    },
+    {
+      "id": "example-block-hangul", "lessonId": "example-lesson-1", "type": "HANGUL", "displayOrder": 1,
+      "content": {
+        "title": "10 Nguyên âm cơ bản",
+        "description": "Quan sát mặt chữ và đối chiếu với bản ghi âm bên dưới.",
+        "characters": [
+          { "char": "ㅏ", "romanization": "a", "soundHint": "Nghe âm a trong bản ghi.", "strokeCount": 2, "strokeOrder": null, "example": { "hangul": "아이", "romanization": "ai", "vietnamese": "Em bé" } },
+          { "char": "ㅓ", "romanization": "eo", "soundHint": "Nghe và phân biệt eo với o.", "strokeCount": 2, "strokeOrder": null, "example": null },
+          { "char": "ㅗ", "romanization": "o", "soundHint": "Nghe âm o trong bản ghi.", "strokeCount": 2, "strokeOrder": null, "example": { "hangul": "오이", "romanization": "oi", "vietnamese": "Dưa chuột" } },
+          { "char": "ㅜ", "romanization": "u", "soundHint": "Nghe âm u trong bản ghi.", "strokeCount": 2, "strokeOrder": null, "example": { "hangul": "우유", "romanization": "uyu", "vietnamese": "Sữa" } },
+          { "char": "ㅡ", "romanization": "eu", "soundHint": "Nghe và phân biệt eu với u.", "strokeCount": 1, "strokeOrder": null, "example": null },
+          { "char": "ㅣ", "romanization": "i", "soundHint": "Nghe âm i trong bản ghi.", "strokeCount": 1, "strokeOrder": null, "example": { "hangul": "이유", "romanization": "iyu", "vietnamese": "Lý do" } },
+          { "char": "ㅑ", "romanization": "ya", "soundHint": "Nghe và phân biệt ya với a.", "strokeCount": 3, "strokeOrder": null, "example": null },
+          { "char": "ㅕ", "romanization": "yeo", "soundHint": "Nghe và phân biệt yeo với eo.", "strokeCount": 3, "strokeOrder": null, "example": { "hangul": "여우", "romanization": "yeou", "vietnamese": "Con cáo" } },
+          { "char": "ㅛ", "romanization": "yo", "soundHint": "Nghe và phân biệt yo với o.", "strokeCount": 3, "strokeOrder": null, "example": null },
+          { "char": "ㅠ", "romanization": "yu", "soundHint": "Nghe và phân biệt yu với u.", "strokeCount": 3, "strokeOrder": null, "example": { "hangul": "유", "romanization": "yu", "vietnamese": "Âm tiết thứ hai trong 우유 (sữa)" } }
+        ]
+      }
+    },
+    {
+      "id": "example-block-vocabulary", "lessonId": "example-lesson-1", "type": "VOCABULARY", "displayOrder": 2,
+      "content": { "title": "Từ vựng cấu tạo từ nguyên âm", "vocabularyIds": ["example-word-ai", "example-word-oi", "example-word-uyu", "example-word-iyu", "example-word-yeou"] }
+    },
+    {
+      "id": "example-block-audio", "lessonId": "example-lesson-1", "type": "AUDIO", "displayOrder": 3,
+      "content": {
+        "title": "Nghe phát âm nguyên âm", "audioUrl": "/audio/lessons/korean-vowels.ogg",
+        "caption": "Nghe và nhắc lại từng nguyên âm theo bản ghi.", "transcript": null
+      }
+    },
+    {
+      "id": "example-block-callout", "lessonId": "example-lesson-1", "type": "CALLOUT", "displayOrder": 4,
+      "content": { "title": "Ôn lại trước khi làm bài", "variant": "remember", "message": "Phân biệt ㅓ / ㅗ và ㅡ / ㅜ. Nghe lại audio rồi đọc năm từ trong ngân hàng." }
+    }
+  ],
+  "vocabulary": [
+    { "id": "example-word-ai", "lessonId": "example-lesson-1", "hangul": "아이", "romanization": "ai", "vietnameseMeaning": "Em bé, đứa trẻ", "englishMeaning": "Child, baby", "partOfSpeech": "Danh từ", "audioUrl": "/audio/vocab/ai.ogg", "difficulty": 1, "tags": ["nguyen-am"], "exampleSentenceHangul": null, "exampleSentenceVi": null, "displayOrder": 0 },
+    { "id": "example-word-oi", "lessonId": "example-lesson-1", "hangul": "오이", "romanization": "oi", "vietnameseMeaning": "Dưa chuột", "englishMeaning": "Cucumber", "partOfSpeech": "Danh từ", "audioUrl": null, "difficulty": 1, "tags": ["nguyen-am"], "exampleSentenceHangul": null, "exampleSentenceVi": null, "displayOrder": 1 },
+    { "id": "example-word-uyu", "lessonId": "example-lesson-1", "hangul": "우유", "romanization": "uyu", "vietnameseMeaning": "Sữa", "englishMeaning": "Milk", "partOfSpeech": "Danh từ", "audioUrl": null, "difficulty": 1, "tags": ["nguyen-am"], "exampleSentenceHangul": null, "exampleSentenceVi": null, "displayOrder": 2 },
+    { "id": "example-word-iyu", "lessonId": "example-lesson-1", "hangul": "이유", "romanization": "iyu", "vietnameseMeaning": "Lý do", "englishMeaning": "Reason", "partOfSpeech": "Danh từ", "audioUrl": null, "difficulty": 1, "tags": ["nguyen-am"], "exampleSentenceHangul": null, "exampleSentenceVi": null, "displayOrder": 3 },
+    { "id": "example-word-yeou", "lessonId": "example-lesson-1", "hangul": "여우", "romanization": "yeou", "vietnameseMeaning": "Con cáo", "englishMeaning": "Fox", "partOfSpeech": "Danh từ", "audioUrl": null, "difficulty": 1, "tags": ["nguyen-am"], "exampleSentenceHangul": null, "exampleSentenceVi": null, "displayOrder": 4 }
+  ],
+  "exercises": [
+    {
+      "id": "example-exercise-1", "lessonId": "example-lesson-1", "title": "Luyện tập: 10 Nguyên âm cơ bản", "description": "Bốn câu hỏi dựa trên nội dung bài học.", "status": "PUBLISHED", "displayOrder": 0,
+      "questions": [
+        {
+          "id": "example-question-1", "exerciseId": "example-exercise-1", "type": "MULTIPLE_CHOICE", "prompt": "Từ nào có nghĩa là dưa chuột?", "audioUrl": null, "correctAnswer": null, "content": {}, "explanation": "오이 có nghĩa là dưa chuột.", "displayOrder": 0,
+          "options": [
+            { "id": "example-option-1a", "text": "오이", "isCorrect": true, "displayOrder": 0 },
+            { "id": "example-option-1b", "text": "아이", "isCorrect": false, "displayOrder": 1 },
+            { "id": "example-option-1c", "text": "우유", "isCorrect": false, "displayOrder": 2 }
+          ]
+        },
+        {
+          "id": "example-question-2", "exerciseId": "example-exercise-1", "type": "MULTIPLE_CHOICE", "prompt": "Nguyên âm nào có phiên âm o?", "audioUrl": null, "correctAnswer": null, "content": {}, "explanation": "ㅗ có phiên âm o; ㅓ có phiên âm eo.", "displayOrder": 1,
+          "options": [
+            { "id": "example-option-2a", "text": "ㅓ", "isCorrect": false, "displayOrder": 0 },
+            { "id": "example-option-2b", "text": "ㅗ", "isCorrect": true, "displayOrder": 1 }
+          ]
+        },
+        {
+          "id": "example-question-3", "exerciseId": "example-exercise-1", "type": "FILL_BLANK", "prompt": "Điền âm tiết còn thiếu: Sữa = 우___ (uyu).", "audioUrl": null, "correctAnswer": "유", "content": { "answers": ["유"], "caseSensitive": false }, "explanation": "우유 có nghĩa là sữa.", "displayOrder": 2, "options": []
+        },
+        {
+          "id": "example-question-4", "exerciseId": "example-exercise-1", "type": "LISTENING_CHOICE", "prompt": "Nghe và chọn nguyên âm trong bản ghi.", "audioUrl": "/audio/exercises/vowel-a.ogg", "correctAnswer": null, "content": {}, "explanation": "Bản ghi phát âm a, tương ứng ㅏ.", "displayOrder": 3,
+          "options": [
+            { "id": "example-option-4a", "text": "ㅏ", "isCorrect": true, "displayOrder": 0 },
+            { "id": "example-option-4b", "text": "ㅓ", "isCorrect": false, "displayOrder": 1 },
+            { "id": "example-option-4c", "text": "ㅗ", "isCorrect": false, "displayOrder": 2 },
+            { "id": "example-option-4d", "text": "ㅜ", "isCorrect": false, "displayOrder": 3 }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 # Supply production secrets through Vercel Environment Variables only.
 .env*
+!.env.production
 .git/
 .vercel/
 node_modules/

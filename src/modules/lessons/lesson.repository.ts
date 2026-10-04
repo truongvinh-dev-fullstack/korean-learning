@@ -19,10 +19,10 @@ export class LessonRepository {
       },
       include: {
         blocks: {
-          orderBy: { displayOrder: "asc" },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
         },
         vocabularies: {
-          orderBy: { displayOrder: "asc" },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
         },
         chapter: {
           select: {
@@ -41,7 +41,7 @@ export class LessonRepository {
         },
         exercises: {
           where: { status: ContentStatus.PUBLISHED },
-          orderBy: { displayOrder: "asc" },
+          orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
           select: {
             id: true,
             title: true,
@@ -70,7 +70,9 @@ export class LessonRepository {
       },
       orderBy: [
         { chapter: { displayOrder: "asc" } },
+        { chapter: { id: "asc" } },
         { displayOrder: "asc" },
+        { id: "asc" },
       ],
       select: {
         id: true,

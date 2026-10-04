@@ -6,6 +6,8 @@ import { LessonMetaEditor } from "@/components/admin/lesson-meta-editor";
 import { LessonBlocksEditor } from "@/components/admin/lesson-blocks-editor";
 import { LessonVocabEditor } from "@/components/admin/lesson-vocab-editor";
 import { LessonExerciseEditor } from "@/components/admin/lesson-exercise-editor";
+import { LessonObjectives } from "@/components/admin/lesson-detail/lesson-objectives";
+import { NotFoundError } from "@/shared/errors/domain-errors";
 
 export default async function AdminLessonEditPage({
   params,
@@ -21,8 +23,9 @@ export default async function AdminLessonEditPage({
   let lesson;
   try {
     lesson = await adminService.getLessonById(session.user, id);
-  } catch {
-    notFound();
+  } catch (error) {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
   }
 
   return (
@@ -63,7 +66,8 @@ export default async function AdminLessonEditPage({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link href={`/admin/ai-lessons?lessonId=${lesson.id}`} className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white">AI tạo bài học</Link>
           <Link
             href={`/admin/lessons/${lesson.id}/preview`}
             className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 shadow-sm transition-all flex items-center gap-1.5"
@@ -84,9 +88,10 @@ export default async function AdminLessonEditPage({
       <div className="space-y-8">
         {/* Section 1: Lesson Meta */}
         <LessonMetaEditor lesson={lesson} />
+        <LessonObjectives lessonId={lesson.id} initialObjectives={lesson.learningObjectives} />
 
         {/* Section 2: Lesson Blocks */}
-        <LessonBlocksEditor lessonId={lesson.id} initialBlocks={lesson.blocks} />
+        <LessonBlocksEditor lessonId={lesson.id} initialBlocks={lesson.blocks} vocabulary={lesson.vocabularies} />
 
         {/* Section 3: Lesson Vocabulary */}
         <LessonVocabEditor

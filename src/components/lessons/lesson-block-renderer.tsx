@@ -2,10 +2,11 @@ import React from "react";
 import { ValidatedLessonBlock } from "@/modules/lessons/lesson-block.schema";
 import { VocabularyAudioButton } from "./vocabulary-audio-button";
 import { getVocabularyAudioUrl } from "@/shared/audio/vocabulary-audio";
+import { resolveVocabularyContent, type VocabularyBankEntry } from "@/modules/lessons/lesson-content";
 
 export function LessonBlockRenderer({ block, vocabularies = [] }: {
   block: ValidatedLessonBlock;
-  vocabularies?: readonly { hangul: string; audioUrl?: string | null }[];
+  vocabularies?: readonly (Partial<VocabularyBankEntry> & { hangul: string })[];
 }) {
   switch (block.type) {
     case "TEXT": {
@@ -52,6 +53,9 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
                     {item.soundHint}
                   </p>
                 )}
+                {item.explanation && <p className="text-xs text-slate-300">{item.explanation}</p>}
+                {!!item.strokeOrder?.length && <ol className="list-decimal pl-4 text-left text-xs text-slate-400">{item.strokeOrder.map((step, i) => <li key={i}>{step}</li>)}</ol>}
+                {item.example && <div className="text-xs text-slate-300"><p className="font-semibold text-white">{item.example.hangul}</p><p>{item.example.romanization}</p><p>{item.example.vietnamese}</p></div>}
                 {item.audioUrl && (
                   <audio controls className="w-full mt-2 h-7" src={item.audioUrl}>
                     Trình duyệt không hỗ trợ phát âm thanh.
@@ -65,7 +69,8 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
     }
 
     case "VOCABULARY": {
-      const { title, items } = block.content;
+      const { title } = block.content;
+      const items = resolveVocabularyContent(block.content, vocabularies);
       return (
         <section className="space-y-4 p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
           {title && <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>}
@@ -115,17 +120,18 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
     }
 
     case "GRAMMAR": {
-      const { title, formula, explanation, examples } = block.content;
+      const { title, pattern, description, rules, examples } = block.content;
       return (
         <section className="space-y-4 p-6 rounded-2xl bg-gradient-to-br from-indigo-950/30 to-slate-900/60 border border-indigo-800/40">
           <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
             <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
             <span className="px-3 py-1 rounded-xl text-xs font-mono font-bold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40">
-              {formula}
+              {pattern}
             </span>
           </div>
 
-          <p className="text-sm text-slate-300 leading-relaxed">{explanation}</p>
+          <p className="text-sm text-slate-300 leading-relaxed">{description}</p>
+          {!!rules.length && <ul className="list-disc pl-5 text-sm text-slate-300">{rules.map((rule, i) => <li key={i}>{rule}</li>)}</ul>}
 
           <div className="space-y-2 pt-2">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -138,6 +144,7 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
                   className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-1"
                 >
                   <p className="text-sm font-semibold text-white">{ex.korean}</p>
+                  {ex.romanization && <p className="text-xs text-indigo-300">{ex.romanization}</p>}
                   <p className="text-xs text-slate-300">{ex.vietnamese}</p>
                   {ex.note && <p className="text-[11px] text-slate-400 italic">💡 {ex.note}</p>}
                 </div>
@@ -173,6 +180,7 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
                 <div className="space-y-1 min-w-0 flex-1">
                   <span className="text-xs font-semibold text-indigo-400">{line.speaker}</span>
                   <p className="text-sm font-bold text-white">{line.korean}</p>
+                  {line.romanization && <p className="text-xs text-indigo-300">{line.romanization}</p>}
                   <p className="text-xs text-slate-300">{line.vietnamese}</p>
                   {line.audioUrl && (
                     <audio controls preload="none" aria-label={`Âm thanh ${line.speaker}, câu ${idx + 1}: ${line.korean}`} className="w-full max-w-xs h-8" src={line.audioUrl}>
@@ -217,6 +225,10 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
         warning: "bg-amber-950/30 border-amber-800/50 text-amber-200",
         tip: "bg-emerald-950/30 border-emerald-800/50 text-emerald-200",
         note: "bg-purple-950/30 border-purple-800/50 text-purple-200",
+        remember: "bg-indigo-950/30 border-indigo-800/50 text-indigo-200",
+        culture: "bg-purple-950/30 border-purple-800/50 text-purple-200",
+        topik: "bg-emerald-950/30 border-emerald-800/50 text-emerald-200",
+        common_mistake: "bg-amber-950/30 border-amber-800/50 text-amber-200",
       }[variant || "info"];
 
       const icons = {
@@ -224,6 +236,7 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
         warning: "⚠️",
         tip: "💡",
         note: "📝",
+        remember: "🧠", culture: "🌏", topik: "🎯", common_mistake: "⚠️",
       }[variant || "info"];
 
       return (
@@ -237,6 +250,19 @@ export function LessonBlockRenderer({ block, vocabularies = [] }: {
       );
     }
 
+    case "EXAMPLE": return <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      {block.content.title && <h3 className="text-xl font-bold text-white">{block.content.title}</h3>}
+      {block.content.items.map((item, index) => <div key={index} className="space-y-1 rounded-xl bg-slate-950 p-3"><p className="font-semibold text-white">{item.korean}</p>
+        {item.romanization && <p className="text-xs text-indigo-300">{item.romanization}</p>}<p className="text-sm text-slate-300">{item.vietnamese}</p>
+        {item.note && <p className="text-xs text-slate-400">{item.note}</p>}{item.audioUrl && <audio controls preload="none" src={item.audioUrl} />}</div>)}
+    </section>;
+    case "IMAGE": return <figure className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      {block.content.title && <h3 className="text-xl font-bold text-white">{block.content.title}</h3>}
+      {/* CMS image sources can be local or arbitrary validated HTTP(S) URLs. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={block.content.imageUrl} alt={block.content.caption || block.content.title || "Hình minh họa bài học"} loading="lazy" className="max-h-[600px] w-full rounded-xl object-contain" />
+      {block.content.caption && <figcaption className="text-sm text-slate-400">{block.content.caption}</figcaption>}
+    </figure>;
     default:
       return null;
   }

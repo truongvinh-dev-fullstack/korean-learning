@@ -48,8 +48,7 @@ export function handleAdminError(err: unknown) {
         error: {
           code: err.code,
           message: err.message,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          details: (err as any).details,
+          details: "details" in err ? err.details : undefined,
         },
       },
       { status: err.statusCode }

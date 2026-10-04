@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AudioUrlSchema } from "@/shared/validation/audio-url";
 
 type Playback = { stop: (notify?: boolean) => void };
 let activePlayback: Playback | null = null;
+function setActivePlayback(value: Playback) { activePlayback = value; }
+function clearActivePlayback(value: Playback) { if (activePlayback === value) activePlayback = null; }
+const subscribeSpeechSupport = () => () => {};
+const speechSupportSnapshot = () => "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+const serverSpeechSupportSnapshot = () => false;
 
 export function VocabularyAudioButton({
   hangul,
@@ -22,10 +27,9 @@ export function VocabularyAudioButton({
 
 function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; source: string | null; showLabel: boolean }) {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "error">("idle");
-  const [speechSupported, setSpeechSupported] = useState(false);
+  const speechSupported = useSyncExternalStore(subscribeSpeechSupport, speechSupportSnapshot, serverSpeechSupportSnapshot);
   const playback = useRef<Playback | null>(null);
   useEffect(() => {
-    setSpeechSupported("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
     return () => playback.current?.stop(false);
   }, []);
 
@@ -64,7 +68,7 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
           audio.pause();
           audio.removeAttribute("src");
           audio.load();
-          if (activePlayback === current) activePlayback = null;
+          clearActivePlayback(current);
           if (playback.current === current) playback.current = null;
           if (notify) setState("idle");
         },
@@ -97,7 +101,7 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
       audio.addEventListener("error", failed);
       document.addEventListener("play", otherAudioStarted, true);
       playback.current = current;
-      activePlayback = current;
+      setActivePlayback(current);
       timeout = setTimeout(failed, 15_000);
       void audio.play().then(playing).catch(failed);
     } catch {
@@ -120,7 +124,7 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
         utterance.onerror = null;
         document.removeEventListener("play", otherAudioStarted, true);
         synth.cancel();
-        if (activePlayback === current) activePlayback = null;
+        clearActivePlayback(current);
         if (playback.current === current) playback.current = null;
         if (notify) setState("idle");
       },
@@ -139,7 +143,7 @@ function AudioButtonControl({ hangul, source, showLabel }: { hangul: string; sou
     };
     document.addEventListener("play", otherAudioStarted, true);
     playback.current = current;
-    activePlayback = current;
+    setActivePlayback(current);
     setState("playing");
     synth.speak(utterance);
   }
