@@ -38,6 +38,6 @@ export async function prepareTestDatabase() {
   }
   // A configured production DIRECT_URL must never reach test migrations.
   const env = { ...process.env, DATABASE_URL: url, DIRECT_URL: url };
-  execSync("pnpm exec prisma migrate deploy", { env, stdio: "inherit" });
-  execSync("pnpm exec tsx prisma/seed.ts", { env, stdio: "inherit" });
+  execSync("npx prisma migrate deploy", { env, stdio: "inherit" });
+  execSync("npx tsx prisma/seed.ts", { env, stdio: "inherit" });
 }

@@ -455,11 +455,7 @@ export function ExerciseRunner({
 
         <div className="flex items-center gap-1.5 overflow-x-auto max-w-xs">
           {questions.map((q, idx) => {
-            const isAnswered = Boolean(
-              answers[q.id]?.selectedOptionId ||
-                (answers[q.id]?.selectedOptionIds && answers[q.id]?.selectedOptionIds!.length > 0) ||
-                answers[q.id]?.textAnswer
-            );
+            const isAnswered = isQuestionAnswered(q, answers[q.id]);
             const isCurrent = idx === currentIndex;
             return (
               <button
